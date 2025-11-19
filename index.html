@@ -90,7 +90,16 @@
 
                 let html = `<div class="gantt-header">
                     <div>Staff</div>
-                    ${Array.from({length:24}, (_,i) => `<div class="hour">${(i + 17) % 24}:00</div>`).join('')}
+                    ${Array.from({length:14}, (_,i) => {
+  const hour = (i + 5) % 24;
+  const label = hour < 10 ? hour + ':00' : hour + ':00';
+  const isOpen = hour === 6;
+  const isClose = hour === 17;
+  const lineColor = isOpen || isClose ? '#28a745' : '#ddd';
+  const lineWidth = isOpen || isClose ? '3px' : '1px';
+  const lineStyle = isOpen || isClose ? 'solid' : 'dotted';
+  return `<div class="hour" style="position:relative;"><span style="position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.8em; font-weight:${isOpen || isClose ? 'bold' : 'normal'};">${label}</span><div style="position:absolute; top:10px; left:0; right:0; height:100%; border-left:${lineWidth} ${lineStyle} ${lineColor};"></div></div>`;
+}).join('')}
                     </div>`;
 
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
