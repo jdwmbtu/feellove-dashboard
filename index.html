@@ -105,12 +105,15 @@
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
 
                                     shifts.forEach(shift => {
-                        const [sh, sm] = shift.start.split(":").map(Number);
+                                               const [sh, sm] = shift.start.split(":").map(Number);
                         const [eh, em] = shift.end.split(":").map(Number);
-                        const startDecimal = (sh - 7 + sm/60 + 24) % 24;  // shift -7 hours for Mountain Time
+                        const startDecimal = (sh - 7 + sm/60 + 24) % 24;  // Mountain Time
                         const endDecimal = (eh - 7 + em/60 + 24) % 24;
-                        const left = (startDecimal / 13) * 100;  // 13 hours visible (5 AM – 6 PM)
-                        let width = ((endDecimal - startDecimal + 24) % 24) / 13 * 100;
+                        const visibleStart = 5;  // 5 AM
+                        const visibleHours = 13; // 5 AM to 6 PM = 13 hours
+                        const left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
+                        let duration = (endDecimal - startDecimal + 24) % 24;
+                        const width = Math.max(duration / visibleHours * 100, 5);
                         width = Math.max(width, 4);
 
                         // Show original (unshifted) times inside the bar
