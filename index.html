@@ -61,7 +61,16 @@
             <tr style="background:#34495e; color:white;">
                 <th style="padding:14px 20px; text-align:left;">Metric</th>
                 <th style="text-align:center; padding:14px 20px;">Forecast</th>
-                <th style="text-align:center; padding:14px 20px;">Target</th>
+                <th style="text-align:center; padding:14px 20px;"><select id="growth-target-today" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                <option value="10">+10%</option>
+                <option value="15" selected>+15%</option>
+                <option value="20">+20%</option>
+                <option value="25">+25%</option>
+                <option value="10000" data-type="dollar">$10K</option>
+                <option value="15000" data-type="dollar">$15K</option>
+                <option value="20000" data-type="dollar">$20K</option>
+                <option value="25000" data-type="dollar">$25K</option>
+            </select></th>
             </tr>
         </thead>
         <tbody>
