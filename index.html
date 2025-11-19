@@ -126,7 +126,7 @@
                     const endDecimal = (eh - 7 + em/60 + 24) % 24;
                     const visibleStart = 5;
                     const visibleHours = 13;
-                    let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
+                    let left = Math.max(0, ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100 - 0.5);
                     let duration = (endDecimal - startDecimal + 24) % 24;
                     let width = Math.max(duration / visibleHours * 100, 5);
 
