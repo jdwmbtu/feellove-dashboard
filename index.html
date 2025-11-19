@@ -39,20 +39,20 @@
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
 
-        // Today’s date string in same format as your sheet (e.g. "11/19/2025")
+        // Today’s date
         const today = new Date();
         document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Load sales data to find tomorrow
+        // Load Net Sales to find tomorrow (first row where SNOW column G is blank/0)
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${salesTab}`)
             .then(r => r.text())
             .then(csv => {
                 const rows = csv.split("\n").map(r => r.replace(/"/g,"").split(","));
                 let tomorrowDate = "";
                 for (let i = 1; i < rows.length; i++) {
-                    const sales = parseFloat(rows[i][6] || 0); // column G = SNOW
-                    if (sales === 0 || rows[i][6] === "") {
-                        tomorrowDate = rows[i][1]; // column B = date in MM/DD/YYYY
+                    const snowSales = rows[i][6]; // column G = SNOW (index 6)
+                    if (!snowSales || snowSales.trim() === "" || parseFloat(snowSales) === 0) {
+                        tomorrowDate = rows[i][2]; // column C = date (index 2)
                         document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrowDate}`;
                         break;
                     }
@@ -61,18 +61,22 @@
             });
 
         function loadSchedule(targetDate) {
+            if (!targetDate) {
+                document.getElementById("gantt-chart").innerHTML = "<p>No upcoming day without sales found.</p>";
+                return;
+            }
             fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${scheduleTab}`)
                 .then(r => r.text())
                 .then(csv => {
                     const rows = csv.split("\n").slice(1);
                     const shifts = rows.map(row => {
                         const cols = row.replace(/"/g,"").split(",");
-                        const date = cols[0]; // Date column
-                        const day = cols[1];
-                        const employee = cols[2];
-                        const start = cols[3];
-                        const end = cols[4];
-                        return {date, day, employee, start, end};
+                        return {
+                            date: cols[0],
+                            employee: cols[2],
+                            start: cols[3],
+                            end: cols[4]
+                        };
                     }).filter(s => s.date === targetDate);
 
                     if (shifts.length === 0) {
@@ -80,24 +84,23 @@
                         return;
                     }
 
-                    // Build Gantt chart
                     let html = `<div class="gantt-header">
                         <div></div>
-                        ${Array.from({length:24},(_,i)=>`<div class="hour">${i}</div>`).join('')}
+                        ${Array.from({length:24},(_,i)=>`<div class="hour">${i}:00</div>`).join('')}
                     </div>`;
 
                     shifts.sort((a,b) => a.start.localeCompare(b.start)).forEach(shift => {
-                        const startHour = parseInt(shift.start.split(":")[0]);
-                        const startMin = parseInt(shift.start.split(":")[1]) / 60;
-                        const endHour = parseInt(shift.end.split(":")[0]);
-                        const endMin = parseInt(shift.end.split(":")[1]) / 60;
-                        const left = (startHour + startMin) * 4.1666; // % across 24h
-                        const width = (endHour + endMin - startHour - startMin) * 4.1666;
+                        const [sh, sm] = shift.start.split(":").map(Number);
+                        const [eh, em] = shift.end.split(":").map(Number);
+                        const startHour = sh + sm/60;
+                        const endHour = eh + em/60;
+                        const left = (startHour / 24) * 100;
+                        const width = ((endHour - startHour) / 24) * 100;
 
                         html += `<div class="employee-row">
                             <div class="employee-name">${shift.employee}</div>
                             <div class="timeline">
-                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start}–${shift.end}</div>
+                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
                             </div>
                         </div>`;
                     });
