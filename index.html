@@ -38,6 +38,13 @@
         const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
+        function formatMT(timeStr) {
+            let [h, m] = timeStr.split(":").map(Number);
+            h = (h - 7 + 24) % 24;
+            return `${h}:${m.toString().padStart(2,"0")}`;
+        }
+        
+        
         const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
         // Today & tomorrow
@@ -134,8 +141,7 @@
                     html += `<div class="employee-row">
                         <div class="employee-name">${shift.employee}</div>
                         <div class="timeline">
-                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
-                        </div>
+                        <div class="shift-bar" style="left:${left}%; width:${width}%;">${formatMT(shift.start)} – ${formatMT(shift.end)}</div>                        </div>
                     </div>`;
                 });
 
