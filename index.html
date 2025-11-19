@@ -12,7 +12,6 @@
         .gantt { margin-top: 40px; }
         .gantt-header { display: grid; grid-template-columns: 150px repeat(24, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
         .hour { text-align: center; font-size: 0.8em; }
-        }
         .employee-row { display: grid; grid-template-columns: 150px repeat(24, 1fr); margin: 8px 0; align-items: center; }
         .employee-name { font-weight: bold; padding-left: 10px; }
         .timeline { position: relative; height: 45px; background: #eee; border-radius: 6px; }
@@ -30,7 +29,7 @@
         <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…</span></div>
     </div>
 
-    <h2 id="tomorrow-title">Tomorrow’s Schedule (loading…)</h2>
+    <h2 id="tomorrow-title">Tomorrow’s Schedule</h2>
     <div id="gantt-chart" class="gantt">Loading schedule…</div>
 
     <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
@@ -42,98 +41,79 @@
 
         const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-        document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        // Today
+        const today = new Date();
+        document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
+        // Tomorrow
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowDateShort = `${months[tomorrow.getMonth()]} ${tomorrow.getDate()}, ${tomorrow.getFullYear()}`;
+        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrow.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+
+        // Load sales (latest available days)
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
             .then(r => r.text())
             .then(csv => {
-                const rows = csv.split("\n").map(line => line.replace(/"/g, "").split(","));
-
-                // Find rows with actual sales (SNOW column G index 6)
-                const salesRows = [];
+                const rows = csv.split("\n").map(l => l.replace(/"/g,"").split(","));
+                const sales = [];
                 for (let i = 1; i < rows.length; i++) {
-                    const snow = rows[i][6]?.trim();
-                    if (snow && snow !== "" && parseFloat(snow) > 0) {
-                        salesRows.push({dateStr: rows[i][2], sales: parseFloat(snow)});
+                    if (rows[i][6] && rows[i][6].trim() !== "") {
+                        sales.push(parseFloat(rows[i][6]));
                     }
                 }
-
-                // Latest 3 days with sales
-                if (salesRows.length > 0) {
-                    document.getElementById("today-sales").textContent = salesRows[salesRows.length-1].sales.toFixed(2);
-                }
-                if (salesRows.length > 1) {
-                    document.getElementById("yesterday-sales").textContent = salesRows[salesRows.length-2].sales.toFixed(2);
-                }
-                // Goal – change this line if your goal is in a different fixed cell
-                document.getElementById("goal").textContent = "3000.00"; // <-- change if needed
-
-                // Find tomorrow = first row where SNOW is blank
-                let tomorrowDateShort = "";
-                for (let i = 1; i < rows.length; i++) {
-                    const snow = rows[i][6]?.trim();
-                    if (!snow || snow === "") {
-                        const parts = rows[i][2].split("/");
-                        const m = parseInt(parts[0]);
-                        const d = parseInt(parts[1]);
-                        const y = parseInt(parts[2]);
-                        tomorrowDateShort = `${months[m-1]} ${d}, ${y}`;
-                        const fullDate = new Date(y, m-1, d).toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${fullDate}`;
-                        break;
-                    }
-                }
-                loadSchedule(tomorrowDateShort || "No blank day found");
+                if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
+                if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2) || "–";
+                document.getElementById("goal").textContent = "3000.00"; // change if you have a different goal cell
             });
 
-        function loadSchedule(targetDateShort) {
-            fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
-                .then(r => r.text())
-                .then(csv => {
-                    const rows = csv.split("\n").slice(1); // skip header
-                    const shifts = [];
-                    rows.forEach(row => {
-                        const cols = row.replace(/"/g,"").split(",");
-                        if (cols[0] === targetDateShort && cols[2]) {
-                            shifts.push({
-                                employee: cols[2].trim(),
-                                start: cols[3].trim(),
-                                end: cols[4].trim()
-                            });
-                        }
-                    });
-
-                    if (shifts.length === 0) {
-                        document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
-                        return;
+        // Load tomorrow's schedule
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
+            .then(r => r.text())
+            .then(csv => {
+                const rows = csv.split("\n").slice(1);
+                const shifts = [];
+                rows.forEach(row => {
+                    const cols = row.replace(/"/g,"").split(",");
+                    if (cols[0] === tomorrowDateShort && cols[2]) {
+                        shifts.push({
+                            employee: cols[2].trim(),
+                            start: cols[3].trim(),
+                            end: cols[4].trim()
+                        });
                     }
-
-                    let html = `<div class="gantt-header">
-                        <div>Staff</div>
-                        ${Array.from({length:24}, (_,i) => `<div class="hour">${i}:00</div>`).join('')}
-                    </div>`;
-
-                    shifts.sort((a,b) => a.start.localeCompare(b.start));
-
-                    shifts.forEach(shift => {
-                        const [sh, sm] = shift.start.split(":").map(Number);
-                        const [eh, em] = shift.end.split(":").map(Number);
-                        const startDecimal = sh + sm/60;
-                        const endDecimal = eh + em/60;
-                        const left = (startDecimal / 24) * 100;
-                        const width = Math.max(((endDecimal - startDecimal) / 24) * 100, 3);
-
-                        html += `<div class="employee-row">
-                            <div class="employee-name">${shift.employee}</div>
-                            <div class="timeline">
-                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
-                            </div>
-                        </div>`;
-                    });
-
-                    document.getElementById("gantt-chart").innerHTML = html;
                 });
-        }
+
+                if (shifts.length === 0) {
+                    document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
+                    return;
+                }
+
+                let html = `<div class="gantt-header">
+                    <div>Staff</div>
+                    ${Array.from({length:24}, (_,i) => `<div class="hour">${i}:00</div>`).join('')}
+                </div>`;
+
+                shifts.sort((a,b) => a.start.localeCompare(b.start));
+
+                shifts.forEach(shift => {
+                    const [sh, sm] = shift.start.split(":").map(Number);
+                    const [eh, em] = shift.end.split(":").map(Number);
+                    const startDecimal = sh + sm/60;
+                    const endDecimal = eh + em/60;
+                    const left = (startDecimal / 24) * 100;
+                    const width = Math.max(((endDecimal - startDecimal) / 24) * 100, 3);
+
+                    html += `<div class="employee-row">
+                        <div class="employee-name">${shift.employee}</div>
+                        <div class="timeline">
+                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
+                        </div>
+                    </div>`;
+                });
+
+                document.getElementById("gantt-chart").innerHTML = html;
+            });
     </script>
 </body>
 </html>
