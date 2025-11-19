@@ -41,33 +41,31 @@
 
         const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-        // Today
+        // Today & tomorrow
         const today = new Date();
         document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Tomorrow
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowDateShort = `${months[tomorrow.getMonth()]} ${tomorrow.getDate()}, ${tomorrow.getFullYear()}`;
+        const tomorrowShort = `${months[tomorrow.getMonth()]} ${tomorrow.getDate()}, ${tomorrow.getFullYear()}`; // e.g. "Nov 20, 2025"
         document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrow.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
 
-        // Load sales (latest available days)
+        // Load sales (latest days)
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
             .then(r => r.text())
             .then(csv => {
                 const rows = csv.split("\n").map(l => l.replace(/"/g,"").split(","));
                 const sales = [];
                 for (let i = 1; i < rows.length; i++) {
-                    if (rows[i][6] && rows[i][6].trim() !== "") {
-                        sales.push(parseFloat(rows[i][6]));
-                    }
+                    const val = rows[i][6]?.trim();
+                    if (val && val !== "") sales.push(parseFloat(val));
                 }
                 if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
-                if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2) || "–";
-                document.getElementById("goal").textContent = "3000.00"; // change if you have a different goal cell
+                if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
+                document.getElementById("goal").textContent = "3000.00"; // change if you want a different goal
             });
 
-        // Load tomorrow's schedule
+        // Load tomorrow's schedule – exact match to "Nov 20, 2025" format
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
             .then(r => r.text())
             .then(csv => {
@@ -75,7 +73,7 @@
                 const shifts = [];
                 rows.forEach(row => {
                     const cols = row.replace(/"/g,"").split(",");
-                    if (cols[0] === tomorrowDateShort && cols[2]) {
+                    if (cols[0].trim() === tomorrowShort && cols[2]) {
                         shifts.push({
                             employee: cols[2].trim(),
                             start: cols[3].trim(),
