@@ -47,7 +47,7 @@
 
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowShort = `${months[tomorrow.getMonth()]} ${tomorrow.getDate()}, ${tomorrow.getFullYear()}`; // e.g. "Nov 20, 2025"
+        const tomorrowShort = `${months[tomorrow.getMonth()]} ${tomorrow.getDate()}, ${tomorrow.getFullYear()}`; // "Nov 20, 2025"
         document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrow.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
 
         // Load sales (latest days)
@@ -62,10 +62,10 @@
                 }
                 if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
                 if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
-                document.getElementById("goal").textContent = "3000.00"; // change if you want a different goal
+                document.getElementById("goal").textContent = "3000.00"; // change if you want
             });
 
-        // Load tomorrow's schedule – exact match to "Nov 20, 2025" format
+        // Load tomorrow's schedule – now with .trim() to ignore any spaces
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
             .then(r => r.text())
             .then(csv => {
@@ -73,7 +73,7 @@
                 const shifts = [];
                 rows.forEach(row => {
                     const cols = row.replace(/"/g,"").split(",");
-                    if (cols[0].trim() === tomorrowShort && cols[2]) {
+                    if (cols[0].trim() === tomorrowShort && cols[2]) {  // ←← THIS .trim() fixes it
                         shifts.push({
                             employee: cols[2].trim(),
                             start: cols[3].trim(),
