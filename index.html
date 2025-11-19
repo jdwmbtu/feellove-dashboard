@@ -39,29 +39,35 @@
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
 
-        // Today’s date
-        const today = new Date();
-        document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Load Net Sales to find tomorrow (first row where SNOW column G is blank/0)
+        // Load sales metrics (you can adjust these row indices if needed)
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${salesTab}`)
             .then(r => r.text())
             .then(csv => {
-                const rows = csv.split("\n").map(r => r.replace(/"/g,"").split(","));
+                const lines = csv.split("\n");
+                document.getElementById("today-sales").textContent = lines[1]?.split(",")[6]?.replace(/"/g,"") || "–";
+                document.getElementById("goal").textContent = lines[2]?.split(",")[6]?.replace(/"/g,"") || "–";
+                document.getElementById("yesterday-sales").textContent = lines[3]?.split(",")[6]?.replace(/"/g,"") || "–";
+
+                // Find tomorrow from Net Sales (first row where SNOW column is blank)
                 let tomorrowDate = "";
-                for (let i = 1; i < rows.length; i++) {
-                    const snowSales = rows[i][6]; // column G = SNOW (index 6)
-                    if (!snowSales || snowSales.trim() === "" || parseFloat(snowSales) === 0) {
-                        tomorrowDate = rows[i][2]; // column C = date (index 2)
-                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrowDate}`;
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i].replace(/"/g,"").split(",");
+                    const snowSales = row[6] || "";
+                    if (snowSales.trim() === "") {
+                        const mmddyyyy = row[2]; // column C = date in M/D/YYYY or MM/DD/YYYY
+                        const [m,d,y] = mmddyyyy.split("/");
+                        tomorrowDate = new Date(y, m-1, d).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' }).replace(/ \d{4}/, ", $&");
+                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${new Date(y, m-1, d).toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
                         break;
                     }
                 }
                 loadSchedule(tomorrowDate);
             });
 
-        function loadSchedule(targetDate) {
-            if (!targetDate) {
+        function loadSchedule(targetDateShort) {
+            if (!targetDateShort) {
                 document.getElementById("gantt-chart").innerHTML = "<p>No upcoming day without sales found.</p>";
                 return;
             }
@@ -72,12 +78,12 @@
                     const shifts = rows.map(row => {
                         const cols = row.replace(/"/g,"").split(",");
                         return {
-                            date: cols[0],
-                            employee: cols[2],
-                            start: cols[3],
-                            end: cols[4]
+                            date: cols[0].trim(),
+                            employee: cols[2].trim(),
+                            start: cols[3].trim(),
+                            end: cols[4].trim()
                         };
-                    }).filter(s => s.date === targetDate);
+                    }).filter(s => s.date === targetDateShort);
 
                     if (shifts.length === 0) {
                         document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
@@ -95,7 +101,7 @@
                         const startHour = sh + sm/60;
                         const endHour = eh + em/60;
                         const left = (startHour / 24) * 100;
-                        const width = ((endHour - startHour) / 24) * 100;
+                        const width = Math.max((endHour - startHour) / 24 * 100, 2); // min width
 
                         html += `<div class="employee-row">
                             <div class="employee-name">${shift.employee}</div>
