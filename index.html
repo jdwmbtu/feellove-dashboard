@@ -54,6 +54,17 @@
                     </select>
                     <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none; white-space: nowrap;" id="target-display">+15%</div>
                 </div>
+
+                <script>
+    const targetSelect = document.getElementById('growth-target-today');
+    const targetDisplay = document.getElementById('target-display');
+    function syncTargetDisplay() {
+        const sel = targetSelect.options[targetSelect.selectedIndex];
+        targetDisplay.textContent = sel.text;
+    }
+    targetSelect.addEventListener('change', syncTargetDisplay);
+    syncTargetDisplay(); // initial
+</script>
             </div>
             <table style="width: 100%; border-collapse: collapse; font-size: 1.4em; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 0 0 12px 12px; overflow: hidden; flex: 1;">
                 <tbody>
