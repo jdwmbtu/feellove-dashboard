@@ -12,11 +12,12 @@
         .gantt { margin-top: 40px; }
         .gantt-header { display: grid; grid-template-columns: 150px repeat(24, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
         .hour { text-align: center; font-size: 0.8em; }
-        .employee-row { display: grid; grid-template-columns: 150px repeat(24, 1fr); margin: 5px 0; align-items: center; }
+        }
+        .employee-row { display: grid; grid-template-columns: 150px repeat(24, 1fr); margin: 8px 0; align-items: center; }
         .employee-name { font-weight: bold; padding-left: 10px; }
-        .timeline { display: grid; grid-template-columns: repeat(24, 1fr); height: 40px; position: relative; background: #eee; border-radius: 6px; }
-        .shift-bar { position: absolute; height: 32px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 32px; font-size: 0.9em; }
-        .print-btn { display: block; margin: 50px auto; padding: 20px 50px; font-size: 2em; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 10px; }
+        .timeline { position: relative; height: 45px; background: #eee; border-radius: 6px; }
+        .shift-bar { position: absolute; top: 6px; height: 33px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 33px; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .print-btn { display: block; margin: 60px auto; padding: 20px 60px; font-size: 2em; background: #007bff; color: white; border: none; border-radius: 12px; cursor: pointer; }
         @media print { .no-print { display: none; } }
     </style>
 </head>
@@ -39,51 +40,68 @@
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
 
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
         document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Load sales metrics (you can adjust these row indices if needed)
-        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${salesTab}`)
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
             .then(r => r.text())
             .then(csv => {
-                const lines = csv.split("\n");
-                document.getElementById("today-sales").textContent = lines[1]?.split(",")[6]?.replace(/"/g,"") || "–";
-                document.getElementById("goal").textContent = lines[2]?.split(",")[6]?.replace(/"/g,"") || "–";
-                document.getElementById("yesterday-sales").textContent = lines[3]?.split(",")[6]?.replace(/"/g,"") || "–";
+                const rows = csv.split("\n").map(line => line.replace(/"/g, "").split(","));
 
-                // Find tomorrow from Net Sales (first row where SNOW column is blank)
-                let tomorrowDate = "";
-                for (let i = 1; i < lines.length; i++) {
-                    const row = lines[i].replace(/"/g,"").split(",");
-                    const snowSales = row[6] || "";
-                    if (snowSales.trim() === "") {
-                        const mmddyyyy = row[2]; // column C = date in M/D/YYYY or MM/DD/YYYY
-                        const [m,d,y] = mmddyyyy.split("/");
-                        tomorrowDate = new Date(y, m-1, d).toLocaleDateString("en-US", { month: 'short', day: 'numeric', year: 'numeric' }).replace(/ \d{4}/, ", $&");
-                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${new Date(y, m-1, d).toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
+                // Find rows with actual sales (SNOW column G index 6)
+                const salesRows = [];
+                for (let i = 1; i < rows.length; i++) {
+                    const snow = rows[i][6]?.trim();
+                    if (snow && snow !== "" && parseFloat(snow) > 0) {
+                        salesRows.push({dateStr: rows[i][2], sales: parseFloat(snow)});
+                    }
+                }
+
+                // Latest 3 days with sales
+                if (salesRows.length > 0) {
+                    document.getElementById("today-sales").textContent = salesRows[salesRows.length-1].sales.toFixed(2);
+                }
+                if (salesRows.length > 1) {
+                    document.getElementById("yesterday-sales").textContent = salesRows[salesRows.length-2].sales.toFixed(2);
+                }
+                // Goal – change this line if your goal is in a different fixed cell
+                document.getElementById("goal").textContent = "3000.00"; // <-- change if needed
+
+                // Find tomorrow = first row where SNOW is blank
+                let tomorrowDateShort = "";
+                for (let i = 1; i < rows.length; i++) {
+                    const snow = rows[i][6]?.trim();
+                    if (!snow || snow === "") {
+                        const parts = rows[i][2].split("/");
+                        const m = parseInt(parts[0]);
+                        const d = parseInt(parts[1]);
+                        const y = parseInt(parts[2]);
+                        tomorrowDateShort = `${months[m-1]} ${d}, ${y}`;
+                        const fullDate = new Date(y, m-1, d).toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${fullDate}`;
                         break;
                     }
                 }
-                loadSchedule(tomorrowDate);
+                loadSchedule(tomorrowDateShort || "No blank day found");
             });
 
         function loadSchedule(targetDateShort) {
-            if (!targetDateShort) {
-                document.getElementById("gantt-chart").innerHTML = "<p>No upcoming day without sales found.</p>";
-                return;
-            }
-            fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${scheduleTab}`)
+            fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
                 .then(r => r.text())
                 .then(csv => {
-                    const rows = csv.split("\n").slice(1);
-                    const shifts = rows.map(row => {
+                    const rows = csv.split("\n").slice(1); // skip header
+                    const shifts = [];
+                    rows.forEach(row => {
                         const cols = row.replace(/"/g,"").split(",");
-                        return {
-                            date: cols[0].trim(),
-                            employee: cols[2].trim(),
-                            start: cols[3].trim(),
-                            end: cols[4].trim()
-                        };
-                    }).filter(s => s.date === targetDateShort);
+                        if (cols[0] === targetDateShort && cols[2]) {
+                            shifts.push({
+                                employee: cols[2].trim(),
+                                start: cols[3].trim(),
+                                end: cols[4].trim()
+                            });
+                        }
+                    });
 
                     if (shifts.length === 0) {
                         document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
@@ -91,17 +109,19 @@
                     }
 
                     let html = `<div class="gantt-header">
-                        <div></div>
-                        ${Array.from({length:24},(_,i)=>`<div class="hour">${i}:00</div>`).join('')}
+                        <div>Staff</div>
+                        ${Array.from({length:24}, (_,i) => `<div class="hour">${i}:00</div>`).join('')}
                     </div>`;
 
-                    shifts.sort((a,b) => a.start.localeCompare(b.start)).forEach(shift => {
+                    shifts.sort((a,b) => a.start.localeCompare(b.start));
+
+                    shifts.forEach(shift => {
                         const [sh, sm] = shift.start.split(":").map(Number);
                         const [eh, em] = shift.end.split(":").map(Number);
-                        const startHour = sh + sm/60;
-                        const endHour = eh + em/60;
-                        const left = (startHour / 24) * 100;
-                        const width = Math.max((endHour - startHour) / 24 * 100, 2); // min width
+                        const startDecimal = sh + sm/60;
+                        const endDecimal = eh + em/60;
+                        const left = (startDecimal / 24) * 100;
+                        const width = Math.max(((endDecimal - startDecimal) / 24) * 100, 3);
 
                         html += `<div class="employee-row">
                             <div class="employee-name">${shift.employee}</div>
