@@ -98,10 +98,10 @@
                 shifts.forEach(shift => {
                     const [sh, sm] = shift.start.split(":").map(Number);
                     const [eh, em] = shift.end.split(":").map(Number);
-                    const startDecimal = sh + sm/60;
-                    const endDecimal = eh + em/60;
+                    const startDecimal = (sh - 7 + (sm/60) + 24) % 24;  // -7 hours for Mountain Time
+                    const endDecimal = (eh - 7 + (em/60) + 24) % 24;
                     const left = (startDecimal / 24) * 100;
-                    const width = Math.max(((endDecimal - startDecimal) / 24) * 100, 4);
+                    const width = Math.max(((endDecimal - startDecimal + 24) % 24) / 24 * 100, 4);
 
                     html += `<div class="employee-row">
                         <div class="employee-name">${shift.employee}</div>
