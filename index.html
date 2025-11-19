@@ -104,21 +104,23 @@
 
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
 
-                shifts.forEach(shift => {
-                    const [sh, sm] = shift.start.split(":").map(Number);
-                    const [eh, em] = shift.end.split(":").map(Number);
-                    const startDecimal = (sh - 7 + (sm/60) + 24) % 24;  // -7 hours for Mountain Time
-                    const endDecimal = (eh - 7 + (em/60) + 24) % 24;
-                    const left = (startDecimal / 24) * 100;
-                    const width = Math.max(((endDecimal - startDecimal + 24) % 24) / 24 * 100, 4);
+                                    shifts.forEach(shift => {
+                        const [sh, sm] = shift.start.split(":").map(Number);
+                        const [eh, em] = shift.end.split(":").map(Number);
+                        const startDecimal = (sh - 7 + sm/60 + 24) % 24;  // shift -7 hours for Mountain Time
+                        const endDecimal = (eh - 7 + em/60 + 24) % 24;
+                        const left = (startDecimal / 13) * 100;  // 13 hours visible (5 AM – 6 PM)
+                        let width = ((endDecimal - startDecimal + 24) % 24) / 13 * 100;
+                        width = Math.max(width, 4);
 
-                    html += `<div class="employee-row">
-                        <div class="employee-name">${shift.employee}</div>
-                        <div class="timeline">
-                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
-                        </div>
-                    </div>`;
-                });
+                        // Show original (unshifted) times inside the bar
+                        html += `<div class="employee-row">
+                            <div class="employee-name">${shift.employee}</div>
+                            <div class="timeline">
+                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
+                            </div>
+                        </div>`;
+                    });
 
                 document.getElementById("gantt-chart").innerHTML = html;
             });
