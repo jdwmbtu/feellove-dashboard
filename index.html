@@ -87,7 +87,7 @@
                     }
                     if (cols[0] === todayShort && cols[2]) {
                         shifts.push({
-                            employee: cols[2],
+                            employee: cols[2].replace(/ \(Shift at .*\)/, '').trim(),,
                             start: cols[3],
                             end: cols[4]
                         });
