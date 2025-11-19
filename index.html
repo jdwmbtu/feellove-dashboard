@@ -113,8 +113,7 @@
                         const visibleHours = 13; // 5 AM to 6 PM = 13 hours
                         let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
                         let duration = (endDecimal - startDecimal + 24) % 24;
-                        const width = Math.max(duration / visibleHours * 100, 5);
-                        width = Math.max(width, 4);
+                        let width = Math.max(duration / visibleHours * 100, 5);
 
                         // Show original (unshifted) times inside the bar
                         html += `<div class="employee-row">
