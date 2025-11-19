@@ -111,7 +111,7 @@
                         const endDecimal = (eh - 7 + em/60 + 24) % 24;
                         const visibleStart = 5;  // 5 AM
                         const visibleHours = 13; // 5 AM to 6 PM = 13 hours
-                        const left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
+                        let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
                         let duration = (endDecimal - startDecimal + 24) % 24;
                         const width = Math.max(duration / visibleHours * 100, 5);
                         width = Math.max(width, 4);
