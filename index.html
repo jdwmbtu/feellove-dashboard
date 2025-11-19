@@ -29,8 +29,58 @@
         <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…</span></div>
     </div>
 
-    <h2>Schedule</h2>
-    <div id="gantt-chart" class="gantt">Loading schedule…</div>
+       <div style="display: flex; gap: 40px; flex-wrap: wrap; margin-top: 40px;">
+        <!-- Left column – Schedule (unchanged) -->
+        <div style="flex: 2; min-width: 600px;">
+            <h2>Schedule</h2>
+            <div id="gantt-chart" class="gantt">Loading schedule…</div>
+        </div>
+
+        <!-- Right column – Today’s Plan table (empty for now) -->
+        <div style="flex: 1; min-width: 340px;">
+            <h2 style="text-align: center; margin-bottom: 10px;">
+                Today’s Plan
+                <select id="growth-target-today" style="font-size: 0.9em; margin-left: 10px; padding: 4px 8px; border-radius: 6px;">
+                    <option value="10">+10%</option>
+                    <option value="15">+15%</option>
+                    <option value="20">+20%</option>
+                    <option value="25">+25%</option>
+                    <option value="5000" data-type="dollar">$5K</option>
+                    <option value="10000" data-type="dollar">$10K</option>
+                    <option value="15000" data-type="dollar">$15K</option>
+                </select>
+            </h2>
+            <table style="width: 100%; border-collapse: collapse; font-size: 1.4em; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 12px; overflow: hidden;">
+                <thead>
+                    <tr style="background: #2c3e50; color: white;">
+                        <th style="padding: 12px; text-align: left;"></th>
+                        <th style="padding: 12px; text-align: center;">Forecast</th>
+                        <th style="padding: 12px; text-align: center;">Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 14px; font-weight: bold;">Customers</td>
+                        <td id="today-customers-forecast" style="text-align: center;">—</td>
+                        <td id="today-customers-target" style="text-align: center;">—</td>
+                    </tr>
+                    <tr style="background: white;">
+                        <td style="padding: 14px; font-weight: bold;">Net Sales</td>
+                        <td id="today-sales-forecast" style="text-align: center;">—</td>
+                        <td id="today-sales-target" style="text-align: center; font-weight: bold; color: #27ae60;">—</td>
+                    </tr>
+                    <tr style="background: #f8f9fa;">
+                        <td style="padding: 14px; font-weight: bold;">AOV</td>
+                        <td id="today-aov-forecast" style="text-align: center;">—</td>
+                        <td id="today-aov-target" style="text-align: center;">—</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div style="text-align: center; margin-top: 8px; font-size: 0.9em; color: #7f8c8d;">
+                Today: <span id="today-plan-date">—</span>
+            </div>
+        </div>
+    </div>
 
     <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
 
