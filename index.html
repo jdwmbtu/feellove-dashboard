@@ -38,20 +38,18 @@
         const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
+
         function formatMT(timeStr) {
             let [h, m] = timeStr.split(":").map(Number);
             h = (h - 7 + 24) % 24;
             return `${h}:${m.toString().padStart(2,"0")}`;
         }
-        
-        
-        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-        // Today & tomorrow
+        // Today only
         const today = new Date();
         document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
         const todayShort = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
         // Load sales
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
             .then(r => r.text())
@@ -64,10 +62,10 @@
                 }
                 if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
                 if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
-                document.getElementById("goal").textContent = "3000.00"; // change if needed
+                document.getElementById("goal").textContent = "3000.00";
             });
 
-        // Load tomorrow's schedule
+        // Load TODAY's schedule
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
             .then(r => r.text())
             .then(text => {
@@ -87,8 +85,7 @@
                             field = "";
                         } else field += char;
                     }
-                    const dateCol = cols[0];
-                    if (dateCol === todayShort && cols[2]) {
+                    if (cols[0] === todayShort && cols[2]) {
                         shifts.push({
                             employee: cols[2],
                             start: cols[3],
@@ -98,11 +95,11 @@
                 }
 
                 if (shifts.length === 0) {
-                    document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
+                    document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled today.</p>";
                     return;
                 }
 
-                // Gantt header with faint dotted lines + bold green at 6 AM & 5 PM
+                // Header with green open/close lines
                 let header = `<div class="gantt-header"><div>Staff</div>`;
                 for (let i = 0; i < 14; i++) {
                     const hour = (i + 5) % 24;
@@ -118,7 +115,6 @@
                     </div>`;
                 }
                 header += `</div>`;
-
                 let html = header;
 
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
@@ -126,7 +122,7 @@
                 shifts.forEach(shift => {
                     const [sh, sm] = shift.start.split(":").map(Number);
                     const [eh, em] = shift.end.split(":").map(Number);
-                    const startDecimal = (sh - 7 + sm/60 + 24) % 24;   // Mountain Time
+                    const startDecimal = (sh - 7 + sm/60 + 24) % 24;
                     const endDecimal = (eh - 7 + em/60 + 24) % 24;
                     const visibleStart = 5;
                     const visibleHours = 13;
@@ -137,7 +133,8 @@
                     html += `<div class="employee-row">
                         <div class="employee-name">${shift.employee}</div>
                         <div class="timeline">
-                        <div class="shift-bar" style="left:${left}%; width:${width}%;">${formatMT(shift.start)} – ${formatMT(shift.end)}</div>                        </div>
+                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${formatMT(shift.start)} – ${formatMT(shift.end)}</div>
+                        </div>
                     </div>`;
                 });
 
