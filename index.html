@@ -51,11 +51,7 @@
         const today = new Date();
         document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowShort = tomorrow.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrow.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
-
+                const todayShort = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
         // Load sales
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
             .then(r => r.text())
@@ -92,7 +88,7 @@
                         } else field += char;
                     }
                     const dateCol = cols[0];
-                    if (dateCol === tomorrowShort && cols[2]) {
+                    if (dateCol === todayShort && cols[2]) {
                         shifts.push({
                             employee: cols[2],
                             start: cols[3],
