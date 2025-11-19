@@ -91,6 +91,37 @@
 
     let netsalesData = [];
     let ordersData = [];
+const storeColumns = { CAFE: 3, FEELLOVE: 4, SNOW: 5, ZION: 6 };
+const CURRENT_DATE = new Date('2025-11-19');
+let isAdjusted = true;
+
+let growthTarget = 15;
+let growthType = 'percent';
+
+function getLastDataDate(store, month) {
+    const idx = storeColumns[store];
+    let last = null;
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (isNaN(d)) return;
+        if (month && d.toLocaleString('en-US', { month: 'long' }) !== month) return;
+        const v = row[idx];
+        if (!v || v.toString().trim() === '') return;
+        const num = parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0);
+        if (num === 0) return;
+        if (!last || d > last) last = d;
+    });
+    return last;
+}
+
+function formatNumber(v, aov = false) {
+    if (v === 0) return aov ? '$0.00' : '$0';
+    const abs = Math.abs(v);
+    let fmt = aov ? abs.toFixed(2) : Math.round(abs).toLocaleString('en-US');
+    return v < 0 ? `<span class="negative">($${fmt})</span>` : `$${fmt}`;
+}
+
+
 
     function formatMT(timeStr) {
         let [h, m] = timeStr.split(":").map(Number);
@@ -236,25 +267,31 @@
         document.getElementById("today-aov-forecast").textContent = "$" + (predOrders > 0 ? (predSales / predOrders).toFixed(2) : "0.00");
 
         // === Target calculation (using your exact logic) ===
-        function updateTarget() {
-            const sel = document.getElementById("growth-target-today");
-            const val = parseFloat(sel.value);
-            const isDollar = sel.selectedOptions[0].hasAttribute("data-type");
-            window.growthTarget = val;
-            window.growthType = isDollar ? 'dollar' : 'percent';
+function updateTarget() {
+    const sel = document.getElementById("growth-target-today");
+    const selectedOption = sel.options[sel.selectedIndex];
+    const val = parseFloat(sel.value);
+    const isDollar = selectedOption.hasAttribute("data-type"); // checks for data-type="dollar"
 
-            const monthName = today.toLocaleDateString("en-US", {month: "long"});
-            const data = calculateSalesData("SNOW", monthName, netsalesData); // you need this function – see below
-            const overallTarget = data.mtdTarget + data.romTarget;
-            const remaining = Math.max(0, overallTarget - data.mtd2025);
+    // Update global variables used by calculateSalesData and getNextDayTargetedNetSales
+    growthTarget = val;
+    growthType = isDollar ? 'dollar' : 'percent';
 
-            const targetResult = getNextDayTargetedNetSales("SNOW", monthName, remaining, netsalesData, today, ordersData);
+    // Also update the visible text in the header
+    document.getElementById("target-display").textContent = selectedOption.text;
 
-            document.getElementById("today-sales-target").textContent = "$" + Math.round(targetResult.value).toLocaleString();
-            document.getElementById("today-customers-target").textContent = Math.round(targetResult.customers);
-            const targetAOV = targetResult.customers > 0 ? targetResult.value / targetResult.customers : 0;
-            document.getElementById("today-aov-target").textContent = "$" + targetAOV.toFixed(2);
-        }
+    const monthName = today.toLocaleDateString("en-US", { month: "long" });
+    const data = calculateSalesData("SNOW", monthName, netsalesData);
+    const overallTarget = data.mtdTarget + data.romTarget;
+    const remaining = Math.max(0, overallTarget - data.mtd2025);
+
+    const targetResult = getNextDayTargetedNetSales("SNOW", monthName, remaining, netsalesData, today, ordersData);
+
+    document.getElementById("today-sales-target").textContent = "$" + Math.round(targetResult.value).toLocaleString();
+    document.getElementById("today-customers-target").textContent = Math.round(targetResult.customers);
+    const targetAOV = targetResult.customers > 0 ? targetResult.value / targetResult.customers : 0;
+    document.getElementById("today-aov-target").textContent = "$" + targetAOV.toFixed(2);
+}
 
         document.getElementById("growth-target-today").addEventListener("change", updateTarget);
         updateTarget();
