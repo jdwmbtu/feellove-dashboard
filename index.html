@@ -125,7 +125,7 @@
                     const startDecimal = (sh - 7 + sm/60 + 24) % 24;
                     const endDecimal = (eh - 7 + em/60 + 24) % 24;
                     const visibleStart = 5;
-                    const visibleHours = 13;
+                    const visibleHours = 14;
                     let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
                     let duration = (endDecimal - startDecimal + 24) % 24;
                     let width = duration / visibleHours * 100;
