@@ -101,8 +101,8 @@
 
                 // Header with green open/close lines
                 let header = `<div class="gantt-header"><div>Staff</div>`;
-                for (let i = 0; i < 14; i++) {
-                    const hour = (i + 5) % 24;
+for (let i = 0; i < 13; i++) {
+    const hour = (i + 5) % 24;
                     const label = hour < 10 ? hour + ":00" : hour + ":00";
                     const isOpen = hour === 6;
                     const isClose = hour === 17;
@@ -125,7 +125,7 @@
                     const startDecimal = (sh - 7 + sm/60 + 24) % 24;
                     const endDecimal = (eh - 7 + em/60 + 24) % 24;
                     const visibleStart = 5;
-                    const visibleHours = 14;
+                    const visibleHours = 13;
                     let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
                     let duration = (endDecimal - startDecimal + 24) % 24;
                     let width = duration / visibleHours * 100;
