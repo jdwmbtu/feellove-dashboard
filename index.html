@@ -10,12 +10,12 @@
         .metrics { display: flex; justify-content: space-around; flex-wrap: wrap; margin: 30px 0; font-size: 1.5em; }
         .box { border: 3px solid #333; border-radius: 12px; padding: 20px; margin: 10px; text-align: center; min-width: 220px; background: #f9f9f9; }
         .gantt { margin-top: 40px; }
-        .gantt-header { display: grid; grid-template-columns: 150px repeat(24, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
-        .hour { text-align: center; font-size: 0.8em; }
-        .employee-row { display: grid; grid-template-columns: 150px 1fr; margin: 8px 0; align-items: center; }
+        .gantt-header { display: grid; grid-template-columns: 150px repeat(14, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
+        .hour { text-align: center; font-size: 0.8em; position: relative; }
+        .employee-row { display: grid; grid-template-columns: 150px 1fr; margin: 8px 0; align-items: center; gap: 10px; }
         .employee-name { font-weight: bold; padding-left: 10px; }
         .timeline { position: relative; height: 50px; background: #eee; border-radius: 8px; overflow: hidden; }
-        .shift-bar { position: absolute; top: 6px; height: 33px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 33px; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .shift-bar { position: absolute; top: 6px; height: 38px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 38px; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
         .print-btn { display: block; margin: 60px auto; padding: 20px 60px; font-size: 2em; background: #007bff; color: white; border: none; border-radius: 12px; cursor: pointer; }
         @media print { .no-print { display: none; } }
     </style>
@@ -38,6 +38,7 @@
         const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
         const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
+        const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
         // Today & tomorrow
         const today = new Date();
@@ -45,7 +46,7 @@
 
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowShort = tomorrow.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }); // "Nov 20, 2025"
+        const tomorrowShort = tomorrow.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
         document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrow.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`;
 
         // Load sales
@@ -60,69 +61,83 @@
                 }
                 if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
                 if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
-                document.getElementById("goal").textContent = "3000.00";
+                document.getElementById("goal").textContent = "3000.00"; // change if needed
             });
 
-        // Load tomorrow's schedule – proper CSV parsing
+        // Load tomorrow's schedule
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
             .then(r => r.text())
-            .then(csv => {
-                const lines = csv.split("\n").slice(1);
+            .then(text => {
+                const lines = text.trim().split("\n");
                 const shifts = [];
 
-                lines.forEach(line => {
-                    // Proper CSV split that respects quotes
-                    const cols = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
-                    const clean = cols.map(c => c.replace(/^"|"$/g, '').trim());
-                    if (clean[0] === tomorrowShort && clean[2]) {
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i];
+                    if (!row) continue;
+                    const cols = [];
+                    let field = "";
+                    let inQuotes = false;
+                    for (let char of row + ",") {
+                        if (char === '"') inQuotes = !inQuotes;
+                        else if (char === ',' && !inQuotes) {
+                            cols.push(field.trim().replace(/^"|"$/g, ''));
+                            field = "";
+                        } else field += char;
+                    }
+                    const dateCol = cols[0];
+                    if (dateCol === tomorrowShort && cols[2]) {
                         shifts.push({
-                            employee: clean[2],
-                            start: clean[3],
-                            end: clean[4]
+                            employee: cols[2],
+                            start: cols[3],
+                            end: cols[4]
                         });
                     }
-                });
+                }
 
                 if (shifts.length === 0) {
                     document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
                     return;
                 }
 
-                let html = `<div class="gantt-header">
-                    <div>Staff</div>
-                    ${Array.from({length:14}, (_,i) => {
-  const hour = (i + 5) % 24;
-  const label = hour < 10 ? hour + ':00' : hour + ':00';
-  const isOpen = hour === 6;
-  const isClose = hour === 17;
-  const lineColor = isOpen || isClose ? '#28a745' : '#ddd';
-  const lineWidth = isOpen || isClose ? '3px' : '1px';
-  const lineStyle = isOpen || isClose ? 'solid' : 'dotted';
-  return `<div class="hour" style="position:relative;"><span style="position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.8em; font-weight:${isOpen || isClose ? 'bold' : 'normal'};">${label}</span><div style="position:absolute; top:10px; left:0; right:0; height:100%; border-left:${lineWidth} ${lineStyle} ${lineColor};"></div></div>`;
-}).join('')}
+                // Gantt header with faint dotted lines + bold green at 6 AM & 5 PM
+                let header = `<div class="gantt-header"><div>Staff</div>`;
+                for (let i = 0; i < 14; i++) {
+                    const hour = (i + 5) % 24;
+                    const label = hour < 10 ? hour + ":00" : hour + ":00";
+                    const isOpen = hour === 6;
+                    const isClose = hour === 17;
+                    const lineColor = isOpen || isClose ? '#28a745' : '#ddd';
+                    const lineWidth = isOpen || isClose ? '3px' : '1px';
+                    const lineStyle = isOpen || isClose ? 'solid' : 'dotted';
+                    header += `<div class="hour" style="position:relative;">
+                        <span style="position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.8em; font-weight:${isOpen || isClose ? 'bold' : 'normal'};">${label}</span>
+                        <div style="position:absolute; top:10px; left:0; right:0; height:100%; border-left:${lineWidth} ${lineStyle} ${lineColor};"></div>
                     </div>`;
+                }
+                header += `</div>`;
+
+                let html = header;
 
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
 
-                                    shifts.forEach(shift => {
-                                               const [sh, sm] = shift.start.split(":").map(Number);
-                        const [eh, em] = shift.end.split(":").map(Number);
-                        const startDecimal = (sh - 7 + sm/60 + 24) % 24;  // Mountain Time
-                        const endDecimal = (eh - 7 + em/60 + 24) % 24;
-                        const visibleStart = 5;  // 5 AM
-                        const visibleHours = 13; // 5 AM to 6 PM = 13 hours
-                        let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
-                        let duration = (endDecimal - startDecimal + 24) % 24;
-                        let width = Math.max(duration / visibleHours * 100, 5);
+                shifts.forEach(shift => {
+                    const [sh, sm] = shift.start.split(":").map(Number);
+                    const [eh, em] = shift.end.split(":").map(Number);
+                    const startDecimal = (sh - 7 + sm/60 + 24) % 24;   // Mountain Time
+                    const endDecimal = (eh - 7 + em/60 + 24) % 24;
+                    const visibleStart = 5;
+                    const visibleHours = 13;
+                    let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
+                    let duration = (endDecimal - startDecimal + 24) % 24;
+                    let width = Math.max(duration / visibleHours * 100, 5);
 
-                        // Show original (unshifted) times inside the bar
-                        html += `<div class="employee-row">
-                            <div class="employee-name">${shift.employee}</div>
-                            <div class="timeline">
-                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
-                            </div>
-                        </div>`;
-                    });
+                    html += `<div class="employee-row">
+                        <div class="employee-name">${shift.employee}</div>
+                        <div class="timeline">
+                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start} – ${shift.end}</div>
+                        </div>
+                    </div>`;
+                });
 
                 document.getElementById("gantt-chart").innerHTML = html;
             });
