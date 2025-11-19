@@ -90,8 +90,8 @@
 
                 let html = `<div class="gantt-header">
                     <div>Staff</div>
-                    ${Array.from({length:24}, (_,i) => `<div class="hour">${i}:00</div>`).join('')}
-                </div>`;
+                    ${Array.from({length:24}, (_,i) => `<div class="hour">${(i + 17) % 24}:00</div>`).join('')}
+                    </div>`;
 
                 shifts.sort((a,b) => a.start.localeCompare(b.start));
 
