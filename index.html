@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNOW Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; }
+        h1 { text-align: center; }
+        .metrics { display: flex; justify-content: space-around; flex-wrap: wrap; margin: 30px 0; font-size: 1.4em; }
+        .box { border: 3px solid #333; border-radius: 12px; padding: 20px; margin: 10px; text-align: center; min-width: 200px; background: #f9f9f9; }
+        table { width: 100%; border-collapse: collapse; margin-top: 40px; font-size: 1.1em; }
+        th, td { border: 1px solid #333; padding: 12px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .print-btn { display: block; margin: 40px auto; padding: 18px 40px; font-size: 1.8em; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 8px; }
+        @media print { .no-print { display: none; } body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <h1>SNOW Daily Dashboard – <span id="today">span></h1>
+
+    <div class="metrics no-print">
+        <div class="box">Today Sales: $<span id="today-sales">loading…span></div>
+        <div class="box">Goal: $<span id="goal">loading…span></div>
+        <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…span></div>
+    </div>
+
+    <h2>Current Week Schedule</h2>
+    <div id="schedule-table">Loading schedule…</div>
+
+    <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
+
+    <script>
+        const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
+        const salesTab = "Sales";               // change only if your sales tab has a different name
+        const scheduleTab = "Schedule-SNOW";
+
+        // Today’s date
+        document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Load sales metrics
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${salesTab}`)
+            .then(r => r.text())
+            .then(csv => {
+                const lines = csv.split("\n");
+                // Adjust these row numbers if your data is in different rows
+                document.getElementById("today-sales").textContent = lines[1]?.split(",")[1]?.replace(/"/g,"") || "–";
+                document.getElementById("goal").textContent = lines[2]?.split(",")[1]?.replace(/"/g,"") || "–";
+                document.getElementById("yesterday-sales").textContent = lines[3]?.split(",")[1]?.replace(/"/g,"") || "–";
+            });
+
+        // Load schedule as HTML table
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:html&sheet=${scheduleTab}`)
+            .then(r => r.text())
+            .then(html => {
+                document.getElementById("schedule-table").innerHTML = html;
+            });
+    </script>
+</body>
+</html>
