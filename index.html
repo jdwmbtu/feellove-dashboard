@@ -83,113 +83,192 @@
 
     <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
 
-    <script>
-        // Sync Target dropdown display
-        document.addEventListener('DOMContentUI', () => {
-            const select = document.getElementById('growth-target-today');
-            const display = document.getElementById('target-display');
-            if (!select || !display) return;
-            const update = () => display.textContent = select.options[select.selectedIndex].text;
-            select.addEventListener('change', update);
-            update();
-        });
+<script>
+    const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
+    const salesTab = "Net Sales";
+    const scheduleTab = "Schedule-SNOW";
+    const ordersTab = "Orders";
 
-        const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
-        const salesTab = "Net Sales";
-        const scheduleTab = "Schedule-SNOW";
+    let netsalesData = [];
+    let ordersData = [];
 
-        function formatMT(timeStr) {
-            let [h, m] = timeStr.split(":").map(Number);
-            h = (h - 7 + 24) % 24;
-            return `${h}:${m.toString().padStart(2,"0")}`;
+    function formatMT(timeStr) {
+        let [h, m] = timeStr.split(":").map(Number);
+        h = (h - 7 + 24) % 24;
+        return `${h}:${m.toString().padStart(2,"0")}`;
+    }
+
+    const today = new Date();
+    document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById("today-plan-date").textContent = today.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayShort = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    // Load all data once
+    Promise.all([
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`).then(r => r.text()),
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ordersTab)}`).then(r => r.text()),
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`).then(r => r.text())
+    ]).then(([salesCsv, ordersCsv, scheduleText]) => {
+        // Parse Net Sales
+        netsalesData = salesCsv.split("\n").map(l => l.replace(/"/g,"").split(","));
+
+        // Parse Orders
+        ordersData = ordersCsv.split("\n").map(l => l.replace(/"/g,"").split(","));
+
+        // Update top metrics
+        const sales = netsalesData.slice(1).map(row => parseFloat(row[6]) || 0).filter(v => v > 0);
+        if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
+        if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
+        document.getElementById("goal").textContent = "3000.00";
+
+        // Build Gantt (unchanged)
+        const lines = scheduleText.trim().split("\n");
+        const shifts = [];
+        for (let i = 1; i < lines.length; i++) {
+            const row = lines[i];
+            if (!row) continue;
+            const cols = [];
+            let field = "", inQuotes = false;
+            for (let char of row + ",") {
+                if (char === '"') inQuotes = !inQuotes;
+                else if (char === ',' && !inQuotes) { cols.push(field.trim().replace(/^"|"$/g, '')); field = ""; }
+                else field += char;
+            }
+            if (cols[0] === todayShort && cols[2]) {
+                shifts.push({
+                    employee: cols[2].replace(/ \(Shift at .*\)/, '').trim(),
+                    start: cols[3],
+                    end: cols[4]
+                });
+            }
+        }
+        if (shifts.length === 0) {
+            document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled today.</p>";
+        } else {
+            let header = `<div class="gantt-header"><div>Staff</div>`;
+            for (let i = 0; i < 13; i++) {
+                const hour = (i + 5) % 24;
+                const label = hour < 10 ? hour + ":00" : hour + ":00";
+                const isOpen = hour === 6;
+                const isClose = hour === 17;
+                const lineColor = isOpen || isClose ? '#28a745' : '#ddd';
+                const lineWidth = isOpen || isClose ? '3px' : '1px';
+                const lineStyle = isOpen || isClose ? 'solid' : 'dotted';
+                header  += `<div class="hour" style="position:relative;">
+                    <span style="position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.8em; font-weight:${isOpen || isClose ? 'bold' : 'normal'};">${label}</span>
+                    <div style="position:absolute; top:10px; left:0; right:0; height:100%; border-left:${lineWidth} ${lineStyle} ${lineColor};"></div>
+                </div>`;
+            }
+            header += `</div>`;
+            let html = header;
+            shifts.sort((a,b) => a.start.localeCompare(b.start));
+            shifts.forEach(shift => {
+                const [sh, sm] = shift.start.split(":").map(Number);
+                const [eh, em] = shift.end.split(":").map(Number);
+                const startDecimal = (sh - 7 + sm/60 + 24) % 24;
+                const endDecimal = (eh - 7 + em/60 + 24) % 24;
+                const visibleStart = 5;
+                const visibleHours = 13;
+                let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
+                let width = ((endDecimal - startDecimal + 24) % 24) / visibleHours * 100;
+                html += `<div class="employee-row">
+                    <div class="employee-name">${shift.employee}</div>
+                    <div class="timeline">
+                        <div class="shift-bar" style="left:${left}%; width:${width}%;">${formatMT(shift.start)} – ${formatMT(shift.end)}</div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById("gantt-chart").innerHTML = html;
         }
 
-        const today = new Date();
-        document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        document.getElementById("today-plan-date").textContent = today.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
-        const todayShort = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        // === 7-Day Prediction (for Forecast column) ===
+        // Find last non-zero date
+        let lastNonZeroDate = null;
+        netsalesData.slice(1).forEach(row => {
+            const d = new Date(row[2]);
+            if (isNaN(d.getTime())) return;
+            const sales = parseFloat(row[6]) || 0;
+            if (sales > 0 && (!lastNonZeroDate || d > lastNonZeroDate)) lastNonZeroDate = d;
+        });
+        const startDate = lastNonZeroDate ? new Date(lastNonZeroDate) : new Date(today);
+        startDate.setDate(startDate.getDate() + 1); // prediction starts tomorrow, but we shift to make day 0 = today
+        const predictionDates = [];
+        for (let i = -1; i < 6; i++) { // -1 to make today day 0
+            const d = new Date(startDate);
+            d.setDate(d.getDate() + i);
+            predictionDates.push(d);
+        }
 
-        // Load sales metrics
-        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`)
-            .then(r => r.text())
-            .then(csv => {
-                const rows = csv.split("\n").map(l => l.replace(/"/g,"").split(","));
-                const sales = [];
-                for (let i = 1; i < rows.length; i++) {
-                    const val = rows[i][6]?.trim();
-                    if (val && val !== "") sales.push(parseFloat(val));
-                }
-                if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
-                if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
-                document.getElementById("goal").textContent = "3000.00";
-            });
+        // Simple prediction logic (same as your big script)
+        const dayAverages = {};
+        ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'].forEach(d => dayAverages[d] = {past: []});
+        ordersData.slice(1).forEach(row => {
+            const d = new Date(row[2]);
+            if (d >= today) return;
+            const dayName = d.toLocaleDateString('en-US', {weekday: 'long'});
+            const orders = parseFloat(row[6]) || 0;
+            if (orders > 0) dayAverages[dayName].past.push(orders);
+        });
+        const todayName = today.toLocaleDateString('en-US', {weekday: 'long'});
+        const past = dayAverages[todayName].past.slice(-3);
+        const predOrders = past.length ? Math.round(past.reduce((a,b)=>a+b,0)/past.length) : 0;
 
-        // Load schedule + build Gantt
-        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`)
-            .then(r => r.text())
-            .then(text => {
-                const lines = text.trim().split("\n");
-                const shifts = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const row = lines[i];
-                    if (!row) continue;
-                    const cols = [];
-                    let field = "", inQuotes = false;
-                    for (let char of row + ",") {
-                        if (char === '"') inQuotes = !inQuotes;
-                        else if (char === ',' && !inQuotes) { cols.push(field.trim().replace(/^"|"$/g, '')); field = ""; }
-                        else field += char;
-                    }
-                    if (cols[0] === todayShort && cols[2]) {
-                        shifts.push({
-                            employee: cols[2].replace(/ \(Shift at .*\)/, '').trim(),
-                            start: cols[3],
-                            end: cols[4]
-                        });
-                    }
-                }
+        // AOV from recent same days
+        let totalSales = 0, totalOrders = 0, count = 0;
+        netsalesData.slice(1).forEach((sRow, i) => {
+            const d = new Date(sRow[2]);
+            if (d.toLocaleDateString('en-US', {weekday: 'long'}) !== todayName || d >= today) return;
+            const sales = parseFloat(sRow[6]) || 0;
+            const oRow = ordersData[i+1];
+            const orders = oRow ? parseFloat(oRow[6]) || 0 : 0;
+            if (sales > 0 && orders > 0) {
+                totalSales += sales;
+                totalOrders += orders;
+                count++;
+            }
+        });
+        const recentAOV = count > 0 ? totalSales / totalOrders : 35; // fallback
+        const predSales = Math.round(predOrders * recentAOV);
 
-                if (shifts.length === 0) {
-                    document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled today.</p>";
-                    return;
-                }
+        // Fill Forecast
+        document.getElementById("today-customers-forecast").textContent = predOrders;
+        document.getElementById("today-sales-forecast").textContent = "$" + predSales.toLocaleString();
+        document.getElementById("today-aov-forecast").textContent = "$" + (predOrders > 0 ? (predSales / predOrders).toFixed(2) : "0.00");
 
-                let header = `<div class="gantt-header"><div>Staff</div>`;
-                for (let i = 0; i < 13; i++) {
-                    const hour = (i + 5) % 24;
-                    const label = hour < 10 ? hour + ":00" : hour + ":00";
-                    const isOpen = hour === 6;
-                    const isClose = hour === 17;
-                    const lineColor = isOpen || isClose ? '#28a745' : '#ddd';
-                    const lineWidth = isOpen || isClose ? '3px' : '1px';
-                    const lineStyle = isOpen || isClose ? 'solid' : 'dotted';
-                    header += `<div class="hour" style="position:relative;">
-                        <span style="position:absolute; bottom:4px; left:50%; transform:translateX(-50%); font-size:0.8em; font-weight:${isOpen || isClose ? 'bold' : 'normal'};">${label}</span>
-                        <div style="position:absolute; top:10px; left:0; right:0; height:100%; border-left:${lineWidth} ${lineStyle} ${lineColor};"></div>
-                    </div>`;
-                }
-                header += `</div>`;
-                let html = header;
+        // === Target calculation (using your exact logic) ===
+        function updateTarget() {
+            const sel = document.getElementById("growth-target-today");
+            const val = parseFloat(sel.value);
+            const isDollar = sel.selectedOptions[0].hasAttribute("data-type");
+            window.growthTarget = val;
+            window.growthType = isDollar ? 'dollar' : 'percent';
 
-                shifts.sort((a,b) => a.start.localeCompare(b.start));
-                shifts.forEach(shift => {
-                    const [sh, sm] = shift.start.split(":").map(Number);
-                    const [eh, em] = shift.end.split(":").map(Number);
-                    const startDecimal = (sh - 7 + sm/60 + 24) % 24;
-                    const endDecimal = (eh - 7 + em/60 + 24) % 24;
-                    const visibleStart = 5;
-                    const visibleHours = 13;
-                    let left = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
-                    let width = ((endDecimal - startDecimal + 24) % 24) / visibleHours * 100;
-                    html += `<div class="employee-row">
-                        <div class="employee-name">${shift.employee}</div>
-                        <div class="timeline">
-                            <div class="shift-bar" style="left:${left}%; width:${width}%;">${formatMT(shift.start)} – ${formatMT(shift.end)}</div>
-                        </div>
-                    </div>`;
-                });
-                document.getElementById("gantt-chart").innerHTML = html;
-            });
-    </script>
+            const monthName = today.toLocaleDateString("en-US", {month: "long"});
+            const data = calculateSalesData("SNOW", monthName, netsalesData); // you need this function – see below
+            const overallTarget = data.mtdTarget + data.romTarget;
+            const remaining = Math.max(0, overallTarget - data.mtd2025);
+
+            const targetResult = getNextDayTargetedNetSales("SNOW", monthName, remaining, netsalesData, today, ordersData);
+
+            document.getElementById("today-sales-target").textContent = "$" + Math.round(targetResult.value).toLocaleString();
+            document.getElementById("today-customers-target").textContent = Math.round(targetResult.customers);
+            const targetAOV = targetResult.customers > 0 ? targetResult.value / targetResult.customers : 0;
+            document.getElementById("today-aov-target").textContent = "$" + targetAOV.toFixed(2);
+        }
+
+        document.getElementById("growth-target-today").addEventListener("change", updateTarget);
+        updateTarget();
+    });
+
+    // Paste your exact calculateSalesData and getNextDayTargetedNetSales functions here (from your big script)
+    // (I’ll give them in the next message if you want – they’re long, but you already have them)
+
+    // Sync dropdown display
+    document.addEventListener("change", e => {
+        if (e.target.id === "growth-target-today") {
+            document.getElementById("target-display").textContent = e.target.selectedOptions[0].text;
+        }
+    });
+</script>
 </body>
 </html>
