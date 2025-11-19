@@ -5,56 +5,106 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SNOW Dashboard</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 900px; margin: 20px auto; padding: 20px; }
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 20px; }
         h1 { text-align: center; }
-        .metrics { display: flex; justify-content: space-around; flex-wrap: wrap; margin: 30px 0; font-size: 1.4em; }
-        .box { border: 3px solid #333; border-radius: 12px; padding: 20px; margin: 10px; text-align: center; min-width: 200px; background: #f9f9f9; }
-        table { width: 100%; border-collapse: collapse; margin-top: 40px; font-size: 1.1em; }
-        th, td { border: 1px solid #333; padding: 12px; text-align: left; }
-        th { background-color: #f0f0f0; }
-        .print-btn { display: block; margin: 40px auto; padding: 18px 40px; font-size: 1.8em; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 8px; }
-        @media print { .no-print { display: none; } body { padding: 0; } }
+        .metrics { display: flex; justify-content: space-around; flex-wrap: wrap; margin: 30px 0; font-size: 1.5em; }
+        .box { border: 3px solid #333; border-radius: 12px; padding: 20px; margin: 10px; text-align: center; min-width: 220px; background: #f9f9f9; }
+        .gantt { margin-top: 40px; }
+        .gantt-header { display: grid; grid-template-columns: 150px repeat(24, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
+        .hour { text-align: center; font-size: 0.8em; }
+        .employee-row { display: grid; grid-template-columns: 150px repeat(24, 1fr); margin: 5px 0; align-items: center; }
+        .employee-name { font-weight: bold; padding-left: 10px; }
+        .timeline { display: grid; grid-template-columns: repeat(24, 1fr); height: 40px; position: relative; background: #eee; border-radius: 6px; }
+        .shift-bar { position: absolute; height: 32px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 32px; font-size: 0.9em; }
+        .print-btn { display: block; margin: 50px auto; padding: 20px 50px; font-size: 2em; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 10px; }
+        @media print { .no-print { display: none; } }
     </style>
 </head>
 <body>
-    <h1>SNOW Daily Dashboard – <span id="today">span></h1>
+    <h1>SNOW Dashboard – <span id="today"></span></h1>
 
     <div class="metrics no-print">
-        <div class="box">Today Sales: $<span id="today-sales">loading…span></div>
-        <div class="box">Goal: $<span id="goal">loading…span></div>
-        <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…span></div>
+        <div class="box">Today Sales: $<span id="today-sales">loading…</span></div>
+        <div class="box">Goal: $<span id="goal">loading…</span></div>
+        <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…</span></div>
     </div>
 
-    <h2>Current Week Schedule</h2>
-    <div id="schedule-table">Loading schedule…</div>
+    <h2 id="tomorrow-title">Tomorrow’s Schedule (loading…)</h2>
+    <div id="gantt-chart" class="gantt">Loading schedule…</div>
 
     <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
 
     <script>
         const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
-        const salesTab = "Sales";               // change only if your sales tab has a different name
+        const salesTab = "Net Sales";
         const scheduleTab = "Schedule-SNOW";
 
-        // Today’s date
-        document.getElementById("today").textContent = new Date().toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        // Today’s date string in same format as your sheet (e.g. "11/19/2025")
+        const today = new Date();
+        document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-        // Load sales metrics
+        // Load sales data to find tomorrow
         fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${salesTab}`)
             .then(r => r.text())
             .then(csv => {
-                const lines = csv.split("\n");
-                // Adjust these row numbers if your data is in different rows
-                document.getElementById("today-sales").textContent = lines[1]?.split(",")[1]?.replace(/"/g,"") || "–";
-                document.getElementById("goal").textContent = lines[2]?.split(",")[1]?.replace(/"/g,"") || "–";
-                document.getElementById("yesterday-sales").textContent = lines[3]?.split(",")[1]?.replace(/"/g,"") || "–";
+                const rows = csv.split("\n").map(r => r.replace(/"/g,"").split(","));
+                let tomorrowDate = "";
+                for (let i = 1; i < rows.length; i++) {
+                    const sales = parseFloat(rows[i][6] || 0); // column G = SNOW
+                    if (sales === 0 || rows[i][6] === "") {
+                        tomorrowDate = rows[i][1]; // column B = date in MM/DD/YYYY
+                        document.getElementById("tomorrow-title").textContent = `Tomorrow’s Schedule – ${tomorrowDate}`;
+                        break;
+                    }
+                }
+                loadSchedule(tomorrowDate);
             });
 
-        // Load schedule as HTML table
-        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:html&sheet=${scheduleTab}`)
-            .then(r => r.text())
-            .then(html => {
-                document.getElementById("schedule-table").innerHTML = html;
-            });
+        function loadSchedule(targetDate) {
+            fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${scheduleTab}`)
+                .then(r => r.text())
+                .then(csv => {
+                    const rows = csv.split("\n").slice(1);
+                    const shifts = rows.map(row => {
+                        const cols = row.replace(/"/g,"").split(",");
+                        const date = cols[0]; // Date column
+                        const day = cols[1];
+                        const employee = cols[2];
+                        const start = cols[3];
+                        const end = cols[4];
+                        return {date, day, employee, start, end};
+                    }).filter(s => s.date === targetDate);
+
+                    if (shifts.length === 0) {
+                        document.getElementById("gantt-chart").innerHTML = "<p>No shifts scheduled for tomorrow.</p>";
+                        return;
+                    }
+
+                    // Build Gantt chart
+                    let html = `<div class="gantt-header">
+                        <div></div>
+                        ${Array.from({length:24},(_,i)=>`<div class="hour">${i}</div>`).join('')}
+                    </div>`;
+
+                    shifts.sort((a,b) => a.start.localeCompare(b.start)).forEach(shift => {
+                        const startHour = parseInt(shift.start.split(":")[0]);
+                        const startMin = parseInt(shift.start.split(":")[1]) / 60;
+                        const endHour = parseInt(shift.end.split(":")[0]);
+                        const endMin = parseInt(shift.end.split(":")[1]) / 60;
+                        const left = (startHour + startMin) * 4.1666; // % across 24h
+                        const width = (endHour + endMin - startHour - startMin) * 4.1666;
+
+                        html += `<div class="employee-row">
+                            <div class="employee-name">${shift.employee}</div>
+                            <div class="timeline">
+                                <div class="shift-bar" style="left:${left}%; width:${width}%;">${shift.start}–${shift.end}</div>
+                            </div>
+                        </div>`;
+                    });
+
+                    document.getElementById("gantt-chart").innerHTML = html;
+                });
+        }
     </script>
 </body>
 </html>
