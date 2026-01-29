@@ -107,7 +107,9 @@
     </div>
     <div id="sync-status" class="no-print" style="margin-top: 8px; font-size: 0.85rem; color: #7f8c8d; min-height: 18px; text-align: center;"></div>
     <div class="no-print" style="margin-top: 8px;">
-        <a href="summary_dashboard.html" style="color: #3498db; font-size: 0.9rem;">View All Stores Summary</a>
+        <button onclick="printDashboard()" style="padding: 8px 20px; font-size: 0.9rem; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
+            🖨 Print Dashboard
+        </button>
     </div>
 </header>
 
@@ -149,14 +151,14 @@
             <div style="font-size: 0.9rem; color: #7f8c8d;">of monthly goal</div>
         </div>
 
-        <!-- Current vs Goal -->
+        <!-- Current / Goal (inline) -->
         <div style="text-align: center; min-width: 200px;">
-            <div id="progress-current" style="font-size: 2rem; font-weight: 700; color: #27ae60;">$0</div>
-            <div style="font-size: 0.85rem; color: #7f8c8d;">MTD Sales</div>
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 2px dashed #e0e0e0;">
-                <div id="progress-goal" style="font-size: 1.5rem; font-weight: 600; color: #c9a227;">$0</div>
-                <div style="font-size: 0.85rem; color: #7f8c8d;">Monthly Goal</div>
+            <div style="font-size: 1.8rem; font-weight: 700;">
+                <span id="progress-current" style="color: #27ae60;">$0</span>
+                <span style="color: #7f8c8d; font-weight: 400;"> / </span>
+                <span id="progress-goal" style="color: #c9a227;">$0</span>
             </div>
+            <div style="font-size: 0.85rem; color: #7f8c8d;">MTD Sales / Monthly Goal</div>
         </div>
     </div>
 
@@ -305,12 +307,6 @@
         <div class="note-status" id="day-note-status"></div>
     </section>
 </div>
-
-<!-- PRINT BUTTON -->
-<button class="print-button no-print" onclick="printDashboard()">
-    Print Today's Sheet
-</button>
-
 
 <!-- FINANCE DETAILS (Collapsed by default) -->
 <section class="finance-section no-print">
