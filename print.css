@@ -358,35 +358,33 @@
         font-size: 8pt;
     }
 
-    /* Day notes section - 2 lines */
+    /* Day notes section - larger for objectives */
     .day-notes-section {
         background: white !important;
         box-shadow: none !important;
         border: 1px solid #333;
         border-radius: 4px;
-        padding: 4px 8px;
+        padding: 6px 10px;
         margin-bottom: 4px;
-        display: flex !important;
-        align-items: flex-start;
-        gap: 8px;
+        display: block !important;
     }
 
     .day-notes-section .section-title {
         border-bottom: none;
-        margin: 0;
-        padding: 4px 0 0 0;
-        white-space: nowrap;
-        font-size: 8pt;
+        margin: 0 0 4px 0;
+        padding: 0;
+        font-size: 9pt;
     }
 
     .day-note-input {
-        flex: 1;
+        width: 100%;
         border: 1px solid #999 !important;
         background: white !important;
         font-size: 8pt;
-        min-height: 32px !important;
-        height: 32px !important;
-        padding: 2px 6px !important;
+        min-height: 64px !important;
+        height: auto !important;
+        max-height: 100px;
+        padding: 4px 8px !important;
         resize: none;
     }
 
