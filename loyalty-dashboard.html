@@ -44,25 +44,25 @@
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
             margin-bottom: 24px;
         }
         .metric-card {
             background: white;
             border-radius: 12px;
-            padding: 20px;
+            padding: 16px;
             text-align: center;
             box-shadow: 0 2px 8px rgba(90,74,58,0.06);
             border: 1px solid #e8ddd0;
         }
         .metric-value {
-            font-size: 2.2rem;
+            font-size: 1.8rem;
             font-weight: 700;
             color: #5a4a3a;
         }
         .metric-label {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: #9a8a7a;
             margin-top: 4px;
         }
@@ -88,90 +88,103 @@
             border-bottom: 2px solid #f0e4d7;
         }
 
-        .store-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-        }
-        .store-card {
-            background: #fdfbf8;
-            border-radius: 8px;
-            padding: 16px;
-            text-align: center;
-        }
-        .store-name {
-            font-weight: 600;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-        }
-        .store-stat {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #d4a574;
-        }
-        .store-label {
-            font-size: 0.75rem;
-            color: #9a8a7a;
-        }
-
-        .comparison-table {
+        .week-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
         }
-        .comparison-table th, .comparison-table td {
-            padding: 12px 16px;
-            text-align: left;
+        .week-table th, .week-table td {
+            padding: 10px 8px;
+            text-align: right;
             border-bottom: 1px solid #e8ddd0;
         }
-        .comparison-table th {
+        .week-table th {
             background: #fdfbf8;
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #9a8a7a;
+            text-transform: uppercase;
         }
-        .comparison-table td { font-size: 0.95rem; }
-        .comparison-table tr:hover { background: #fdfbf8; }
-        .positive { color: #5a9a7a; }
-        .negative { color: #b87a7e; }
+        .week-table th:first-child,
+        .week-table td:first-child {
+            text-align: left;
+        }
+        .week-table tr:hover { background: #fdfbf8; }
+        .week-table tr.totals-row {
+            background: #f5f0e6;
+            font-weight: 600;
+        }
+        .week-table tr.totals-row td {
+            border-top: 2px solid #d4a574;
+        }
+        .store-name { font-weight: 500; }
+        .pct { color: #7eb8a2; }
+        .money { color: #5a4a3a; }
+        .tip { color: #9a8a7a; }
+        .signups {
+            color: #d4a574;
+            font-weight: 600;
+        }
 
         .loading {
             text-align: center;
-            padding: 40px;
+            padding: 60px;
             color: #9a8a7a;
         }
         .loading::after {
             content: '';
             display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #e8ddd0;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e8ddd0;
             border-top-color: #d4a574;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
-            margin-left: 10px;
+            margin-left: 12px;
             vertical-align: middle;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .two-col {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-        @media (max-width: 768px) {
-            .two-col { grid-template-columns: 1fr; }
-            .store-grid { grid-template-columns: repeat(2, 1fr); }
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: #b87a7e;
+            background: #fdf2f3;
+            border-radius: 12px;
         }
 
-        .trend-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #f0e4d7;
+        @media (max-width: 768px) {
+            .week-table { font-size: 0.75rem; }
+            .week-table th, .week-table td { padding: 8px 4px; }
+            .metrics-grid { grid-template-columns: repeat(3, 1fr); }
         }
-        .trend-row:last-child { border-bottom: none; }
-        .trend-month { font-weight: 500; }
-        .trend-value { font-weight: 600; color: #d4a574; }
+
+        .week-label {
+            font-size: 0.9rem;
+            color: #5a4a3a;
+            margin-bottom: 12px;
+            font-weight: 500;
+        }
+
+        .insights {
+            background: #f5f0e6;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .insights h3 {
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            color: #5a4a3a;
+        }
+        .insights ul {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 0.85rem;
+            color: #5a4a3a;
+        }
+        .insights li { margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -183,209 +196,230 @@
     </div>
     <div class="header-right">
         <span id="last-updated" style="font-size: 0.8rem; color: #9a8a7a;">Loading...</span>
-        <button class="btn btn-primary" onclick="loadAllData()">↻ Refresh</button>
+        <button class="btn btn-primary" onclick="loadData()">Refresh</button>
     </div>
 </header>
 
-<!-- Top Level Metrics -->
-<div class="metrics-grid">
+<!-- Program Health -->
+<div class="metrics-grid" id="program-metrics">
     <div class="metric-card highlight">
         <div class="metric-value" id="total-members">--</div>
-        <div class="metric-label">Total Loyalty Members</div>
+        <div class="metric-label">Total Members</div>
     </div>
     <div class="metric-card">
         <div class="metric-value" id="active-members">--</div>
         <div class="metric-label">Active Members</div>
     </div>
     <div class="metric-card">
-        <div class="metric-value" id="loyalty-rate">--%</div>
-        <div class="metric-label">Loyalty Order Rate</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-value" id="redemption-rate">--%</div>
-        <div class="metric-label">Redemption Rate</div>
-    </div>
-    <div class="metric-card">
         <div class="metric-value" id="points-circulation">--</div>
         <div class="metric-label">Points in Circulation</div>
     </div>
-    <div class="metric-card">
-        <div class="metric-value" id="avg-lifetime">--</div>
-        <div class="metric-label">Avg Lifetime Points</div>
-    </div>
 </div>
 
-<div class="two-col">
-    <!-- Store Comparison -->
-    <div class="section">
-        <h2 class="section-title">Loyalty Activity by Store (Last 30 Days)</h2>
-        <div class="store-grid" id="store-activity">
-            <div class="loading">Loading store data...</div>
-        </div>
-    </div>
-
-    <!-- Recent Signups -->
-    <div class="section">
-        <h2 class="section-title">New Signups by Month</h2>
-        <div id="signup-trends">
-            <div class="loading">Loading trends...</div>
-        </div>
-    </div>
+<!-- Weekly Tables -->
+<div id="weekly-data">
+    <div class="loading">Loading loyalty data (this may take 10-20 seconds)...</div>
 </div>
 
-<!-- Loyalty vs Non-Loyalty Comparison -->
-<div class="section">
-    <h2 class="section-title">Loyalty vs Non-Loyalty Customers (Last 7 Days)</h2>
-    <table class="comparison-table" id="comparison-table">
-        <thead>
-            <tr>
-                <th>Metric</th>
-                <th>Loyalty Customers</th>
-                <th>Non-Loyalty</th>
-                <th>Difference</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr><td colspan="4" class="loading">Loading comparison...</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<!-- Reward Tiers -->
-<div class="section">
-    <h2 class="section-title">Reward Tiers</h2>
-    <div id="reward-tiers">
-        <div class="loading">Loading rewards...</div>
+<!-- Insights -->
+<div id="insights-section" style="display: none;">
+    <div class="insights">
+        <h3>Key Insights</h3>
+        <ul id="insights-list"></ul>
     </div>
 </div>
 
 <script>
 const API_BASE = 'https://feellove-sync.vercel.app/api';
-// We'll need to create a loyalty API endpoint, for now use direct calls
 
-const LOCATIONS = {
-    'LP4HWE0NCWC9Y': 'Cafe FeelLove',
-    '3W6S7XM4QHZR5': 'Riverside',
-    'LWS3J3NK0BDYA': 'Snow Canyon',
-    'L0BEFRPSDF20H': 'Zion'
-};
+const STORE_ORDER = ['CAFE', 'FEELLOVE', 'SNOW', 'ZION'];
 
-// For now, display static data from our exploration
-// In production, this would call a backend API
+function formatMoney(amount) {
+    if (amount === null || amount === undefined) return '--';
+    return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 
-function loadAllData() {
+function formatPct(pct) {
+    if (pct === null || pct === undefined) return '--';
+    return pct + '%';
+}
+
+function formatTip(tip) {
+    if (tip === null || tip === undefined) return '--';
+    return '$' + parseFloat(tip).toFixed(2);
+}
+
+function renderWeekTable(weekData, storeNames) {
+    const stores = STORE_ORDER.map(key => ({
+        key,
+        name: storeNames[key] || key,
+        ...weekData.stores[key]
+    }));
+
+    let html = `
+    <div class="section">
+        <div class="week-label">${weekData.label}</div>
+        <table class="week-table">
+            <thead>
+                <tr>
+                    <th>Store</th>
+                    <th>Net Sales</th>
+                    <th>Loyalty Sales</th>
+                    <th>Loy %</th>
+                    <th>Orders</th>
+                    <th>Loy Orders</th>
+                    <th>Loy %</th>
+                    <th>Loy Tip</th>
+                    <th>Non-Loy Tip</th>
+                    <th>Signups</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    for (const store of stores) {
+        html += `
+            <tr>
+                <td class="store-name">${store.name}</td>
+                <td class="money">${formatMoney(store.netSales)}</td>
+                <td class="money">${formatMoney(store.loyaltySales)}</td>
+                <td class="pct">${formatPct(store.loyaltySalesPct)}</td>
+                <td>${store.orders}</td>
+                <td>${store.loyaltyOrders}</td>
+                <td class="pct">${formatPct(store.loyaltyOrdersPct)}</td>
+                <td class="tip">${formatTip(store.avgLoyaltyTip)}</td>
+                <td class="tip">${formatTip(store.avgNonLoyaltyTip)}</td>
+                <td class="signups">${store.newSignups}</td>
+            </tr>`;
+    }
+
+    // Totals row
+    const t = weekData.totals;
+    html += `
+            <tr class="totals-row">
+                <td class="store-name">Total</td>
+                <td class="money">${formatMoney(t.netSales)}</td>
+                <td class="money">${formatMoney(t.loyaltySales)}</td>
+                <td class="pct">${formatPct(t.loyaltySalesPct)}</td>
+                <td>${t.orders}</td>
+                <td>${t.loyaltyOrders}</td>
+                <td class="pct">${formatPct(t.loyaltyOrdersPct)}</td>
+                <td class="tip">${formatTip(t.avgLoyaltyTip)}</td>
+                <td class="tip">${formatTip(t.avgNonLoyaltyTip)}</td>
+                <td class="signups">${t.newSignups}</td>
+            </tr>
+        </tbody>
+        </table>
+    </div>`;
+
+    return html;
+}
+
+function generateInsights(data) {
+    const insights = [];
+
+    // Compare most recent week to previous
+    if (data.weeks.length >= 2) {
+        const thisWeek = data.weeks[0].totals;
+        const lastWeek = data.weeks[1].totals;
+
+        // Loyalty % trend
+        const loyaltyDiff = thisWeek.loyaltySalesPct - lastWeek.loyaltySalesPct;
+        if (loyaltyDiff > 2) {
+            insights.push(`Loyalty sales share is up ${loyaltyDiff}% from last week - great momentum!`);
+        } else if (loyaltyDiff < -2) {
+            insights.push(`Loyalty sales share dropped ${Math.abs(loyaltyDiff)}% from last week.`);
+        }
+
+        // Signup trend
+        const signupDiff = thisWeek.newSignups - lastWeek.newSignups;
+        if (signupDiff > 5) {
+            insights.push(`New signups jumped by ${signupDiff} compared to last week.`);
+        } else if (signupDiff < -5) {
+            insights.push(`New signups down ${Math.abs(signupDiff)} from last week.`);
+        }
+    }
+
+    // Find best performing store (highest loyalty %)
+    const thisWeek = data.weeks[0];
+    let bestStore = null;
+    let bestPct = 0;
+    for (const [key, store] of Object.entries(thisWeek.stores)) {
+        if (store.loyaltyOrdersPct > bestPct) {
+            bestPct = store.loyaltyOrdersPct;
+            bestStore = data.storeNames[key];
+        }
+    }
+    if (bestStore) {
+        insights.push(`${bestStore} leads with ${bestPct}% loyalty order rate.`);
+    }
+
+    // Tip comparison
+    const avgLoyTip = parseFloat(thisWeek.totals.avgLoyaltyTip) || 0;
+    const avgNonLoyTip = parseFloat(thisWeek.totals.avgNonLoyaltyTip) || 0;
+    if (avgLoyTip > avgNonLoyTip && avgNonLoyTip > 0) {
+        const tipDiff = ((avgLoyTip - avgNonLoyTip) / avgNonLoyTip * 100).toFixed(0);
+        insights.push(`Loyalty members tip ${tipDiff}% more than non-members.`);
+    }
+
+    return insights;
+}
+
+async function loadData() {
+    const container = document.getElementById('weekly-data');
+    container.innerHTML = '<div class="loading">Loading loyalty data (this may take 10-20 seconds)...</div>';
     document.getElementById('last-updated').textContent = 'Loading...';
+    document.getElementById('insights-section').style.display = 'none';
 
-    // Simulated data from our exploration
-    setTimeout(() => {
-        // Top metrics
-        document.getElementById('total-members').textContent = '10,000+';
-        document.getElementById('active-members').textContent = '9,864';
-        document.getElementById('loyalty-rate').textContent = '50%';
-        document.getElementById('redemption-rate').textContent = '8%';
-        document.getElementById('points-circulation').textContent = '212K';
-        document.getElementById('avg-lifetime').textContent = '128';
+    try {
+        const response = await fetch(`${API_BASE}/loyalty-stats`);
 
-        // Store activity
-        document.getElementById('store-activity').innerHTML = `
-            <div class="store-card">
-                <div class="store-name">Cafe FeelLove</div>
-                <div class="store-stat">16</div>
-                <div class="store-label">events (30d)</div>
-            </div>
-            <div class="store-card">
-                <div class="store-name">Riverside</div>
-                <div class="store-stat">4</div>
-                <div class="store-label">events (30d)</div>
-            </div>
-            <div class="store-card">
-                <div class="store-name">Zion</div>
-                <div class="store-stat">2</div>
-                <div class="store-label">events (30d)</div>
-            </div>
-            <div class="store-card">
-                <div class="store-name">Snow Canyon</div>
-                <div class="store-stat">1</div>
-                <div class="store-label">events (30d)</div>
-            </div>
-        `;
+        if (!response.ok) {
+            throw new Error(`API returned ${response.status}`);
+        }
 
-        // Signup trends (need to get recent data)
-        document.getElementById('signup-trends').innerHTML = `
-            <div class="trend-row">
-                <span class="trend-month">January 2026</span>
-                <span class="trend-value">TBD</span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-month">December 2025</span>
-                <span class="trend-value">TBD</span>
-            </div>
-            <div class="trend-row">
-                <span class="trend-month">November 2025</span>
-                <span class="trend-value">TBD</span>
-            </div>
-            <div style="margin-top: 12px; font-size: 0.85rem; color: #9a8a7a; font-style: italic;">
-                Note: Need to set up daily tracking for accurate trends
-            </div>
-        `;
+        const data = await response.json();
 
-        // Comparison table
-        document.getElementById('comparison-table').querySelector('tbody').innerHTML = `
-            <tr>
-                <td>Orders</td>
-                <td>~50% of total</td>
-                <td>~50% of total</td>
-                <td>--</td>
-            </tr>
-            <tr>
-                <td>Avg Order Value</td>
-                <td id="loyalty-aov">$--</td>
-                <td id="non-loyalty-aov">$--</td>
-                <td id="aov-diff">--</td>
-            </tr>
-            <tr>
-                <td>Redemptions</td>
-                <td>8% of loyalty orders</td>
-                <td>N/A</td>
-                <td>--</td>
-            </tr>
-        `;
+        if (!data.success) {
+            throw new Error(data.error || 'Unknown error');
+        }
 
-        // Reward tiers
-        document.getElementById('reward-tiers').innerHTML = `
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-                <div class="store-card">
-                    <div class="store-stat" style="font-size: 1.2rem;">5 ❤️</div>
-                    <div class="store-name" style="margin-top: 8px;">1 Free Macaron</div>
-                    <div class="store-label">100% off</div>
-                </div>
-                <div class="store-card">
-                    <div class="store-stat" style="font-size: 1.2rem;">10 ❤️</div>
-                    <div class="store-name" style="margin-top: 8px;">Avo Toast</div>
-                    <div class="store-label">50% off single slice</div>
-                </div>
-                <div class="store-card">
-                    <div class="store-stat" style="font-size: 1.2rem;">20 ❤️</div>
-                    <div class="store-name" style="margin-top: 8px;">Any Drink</div>
-                    <div class="store-label">50% off</div>
-                </div>
-                <div class="store-card">
-                    <div class="store-stat" style="font-size: 1.2rem;">30 ❤️</div>
-                    <div class="store-name" style="margin-top: 8px;">Entire Sale</div>
-                    <div class="store-label">50% off (up to $15)</div>
-                </div>
-            </div>
-            <div style="margin-top: 16px; padding: 12px; background: #f5e1dc; border-radius: 8px; font-size: 0.9rem;">
-                <strong>Earning Rate:</strong> 1 Heart per $5 spent
-            </div>
-        `;
+        // Update program metrics
+        document.getElementById('total-members').textContent = data.program.totalMembers.toLocaleString();
+        document.getElementById('active-members').textContent = data.program.activeMembers.toLocaleString();
+        document.getElementById('points-circulation').textContent = (data.program.pointsInCirculation / 1000).toFixed(0) + 'K';
 
-        document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-    }, 500);
+        // Render weekly tables
+        let html = '';
+        for (const week of data.weeks) {
+            html += renderWeekTable(week, data.storeNames);
+        }
+        container.innerHTML = html;
+
+        // Generate insights
+        const insights = generateInsights(data);
+        if (insights.length > 0) {
+            document.getElementById('insights-list').innerHTML = insights.map(i => `<li>${i}</li>`).join('');
+            document.getElementById('insights-section').style.display = 'block';
+        }
+
+        // Update timestamp
+        const now = new Date();
+        document.getElementById('last-updated').textContent = 'Updated: ' + now.toLocaleTimeString();
+
+    } catch (error) {
+        console.error('Error loading loyalty data:', error);
+        container.innerHTML = `
+            <div class="error">
+                <p>Failed to load loyalty data</p>
+                <p style="font-size: 0.85rem; margin-top: 8px;">${error.message}</p>
+                <button class="btn btn-primary" style="margin-top: 16px;" onclick="loadData()">Try Again</button>
+            </div>`;
+        document.getElementById('last-updated').textContent = 'Error';
+    }
 }
 
 // Load on page load
-loadAllData();
+loadData();
 </script>
 
 </body>
