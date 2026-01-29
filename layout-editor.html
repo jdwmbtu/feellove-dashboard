@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Layout Editor</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 10px; }
+        .instructions {
+            text-align: center;
+            color: #666;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+        .workspace {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+        .section {
+            background: #f8f9fa;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: grab;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section:hover {
+            border-color: #3498db;
+            background: #eef6fc;
+        }
+        .section.dragging {
+            opacity: 0.5;
+            border-style: solid;
+            border-color: #27ae60;
+        }
+        .section.drag-over {
+            border-color: #e74c3c;
+            background: #fdf2f2;
+        }
+        .drag-handle {
+            font-size: 1.5rem;
+            color: #999;
+            cursor: grab;
+        }
+        .section-info {
+            flex: 1;
+        }
+        .section-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .section-desc {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+        .section-toggle {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .section-toggle.hidden-section {
+            background: #ffebee;
+            border-color: #e57373;
+            color: #c62828;
+        }
+        .section.is-hidden {
+            opacity: 0.5;
+            background: #f5f5f5;
+        }
+
+        /* Row container for side-by-side sections */
+        .row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .row .section {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
+        .controls {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+        .btn {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn-primary {
+            background: #27ae60;
+            color: white;
+        }
+        .btn-secondary {
+            background: #3498db;
+            color: white;
+        }
+        .output {
+            margin-top: 20px;
+            padding: 15px;
+            background: #2c3e50;
+            color: #27ae60;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .output.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Dashboard Layout Editor</h1>
+<p class="instructions">Drag sections to reorder. Click "Show/Hide" to toggle visibility. Click "Copy Layout" when done.</p>
+
+<div class="workspace" id="workspace">
+    <!-- Header -->
+    <div class="section" draggable="true" data-id="header" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">Header</div>
+            <div class="section-desc">Logo, store selector, date nav, print button</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="section" draggable="true" data-id="progress" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">Progress Ring + Goals</div>
+            <div class="section-desc">Percentage ring, MTD/Goal, progress bar, daily targets</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+
+    <!-- 7-Day Chart -->
+    <div class="section" draggable="true" data-id="chart" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">7-Day Sales Chart</div>
+            <div class="section-desc">Bar chart showing last 7 days of sales + orders</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+
+    <!-- Team Schedule -->
+    <div class="section" draggable="true" data-id="team" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">Team Schedule</div>
+            <div class="section-desc">Staff list with Gantt bars and notes</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+
+    <!-- Day Notes -->
+    <div class="section" draggable="true" data-id="daynotes" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">Daily Notes</div>
+            <div class="section-desc">Store-wide notes for the day</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+
+    <!-- Finance Section -->
+    <div class="section" draggable="true" data-id="finance" data-visible="true">
+        <span class="drag-handle">⠿</span>
+        <div class="section-info">
+            <div class="section-name">Finance Details (Collapsed)</div>
+            <div class="section-desc">YoY metrics, forecasts, scenarios - hidden by default</div>
+        </div>
+        <button class="section-toggle" onclick="toggleVisibility(this)">Hide</button>
+    </div>
+</div>
+
+<div class="controls">
+    <button class="btn btn-primary" onclick="copyLayout()">📋 Copy Layout</button>
+    <button class="btn btn-secondary" onclick="resetLayout()">↩ Reset</button>
+</div>
+
+<div class="output" id="output"></div>
+
+<script>
+const workspace = document.getElementById('workspace');
+let draggedEl = null;
+
+// Drag events
+workspace.addEventListener('dragstart', (e) => {
+    if (e.target.classList.contains('section')) {
+        draggedEl = e.target;
+        e.target.classList.add('dragging');
+    }
+});
+
+workspace.addEventListener('dragend', (e) => {
+    if (e.target.classList.contains('section')) {
+        e.target.classList.remove('dragging');
+        draggedEl = null;
+    }
+});
+
+workspace.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const section = e.target.closest('.section');
+    if (section && section !== draggedEl) {
+        section.classList.add('drag-over');
+    }
+});
+
+workspace.addEventListener('dragleave', (e) => {
+    const section = e.target.closest('.section');
+    if (section) {
+        section.classList.remove('drag-over');
+    }
+});
+
+workspace.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const section = e.target.closest('.section');
+    if (section && section !== draggedEl) {
+        section.classList.remove('drag-over');
+        // Swap positions
+        const allSections = [...workspace.querySelectorAll('.section')];
+        const draggedIdx = allSections.indexOf(draggedEl);
+        const targetIdx = allSections.indexOf(section);
+
+        if (draggedIdx < targetIdx) {
+            section.parentNode.insertBefore(draggedEl, section.nextSibling);
+        } else {
+            section.parentNode.insertBefore(draggedEl, section);
+        }
+    }
+});
+
+function toggleVisibility(btn) {
+    const section = btn.closest('.section');
+    const isVisible = section.dataset.visible === 'true';
+    section.dataset.visible = !isVisible;
+    section.classList.toggle('is-hidden', isVisible);
+    btn.textContent = isVisible ? 'Show' : 'Hide';
+    btn.classList.toggle('hidden-section', isVisible);
+}
+
+function copyLayout() {
+    const sections = [...workspace.querySelectorAll('.section')];
+    const layout = sections.map((s, i) => ({
+        position: i + 1,
+        id: s.dataset.id,
+        name: s.querySelector('.section-name').textContent,
+        visible: s.dataset.visible === 'true'
+    }));
+
+    const output = `LAYOUT ORDER:
+${layout.map(l => `${l.position}. ${l.name} ${l.visible ? '✓' : '(HIDDEN)'}`).join('\n')}
+
+Paste this back to Claude to apply.`;
+
+    const outputEl = document.getElementById('output');
+    outputEl.textContent = output;
+    outputEl.classList.add('show');
+
+    navigator.clipboard.writeText(output).then(() => {
+        alert('Layout copied to clipboard!');
+    });
+}
+
+function resetLayout() {
+    location.reload();
+}
+</script>
+
+</body>
+</html>

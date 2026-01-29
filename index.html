@@ -70,48 +70,39 @@
     </div>
 </div>
 
-<!-- HEADER -->
-<header class="dashboard-header">
-    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px;">
-        <img src="https://feellovecoffee.com/wp-content/uploads/2024/09/fl_logo.svg" alt="FeelLove Coffee" style="height: 60px;">
-        <h1 style="margin: 0;">FeelLove Coffee</h1>
+<!-- HEADER - Single compact row -->
+<header class="dashboard-header no-print" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 20px; background: linear-gradient(135deg, #fff9f0 0%, #fff 100%); border-bottom: 2px solid #e8d4b8; flex-wrap: wrap;">
+    <!-- Logo + Title -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <img src="https://feellovecoffee.com/wp-content/uploads/2024/09/fl_logo.svg" alt="FeelLove Coffee" style="height: 45px;">
+        <span style="font-size: 1.3rem; font-weight: 600; color: #5a4a3a;">FeelLove</span>
     </div>
-    <div class="date-nav no-print" style="display: flex; align-items: center; gap: 12px; margin: 8px 0;">
-        <button onclick="changeDay(-1)" style="padding: 8px 16px; font-size: 1.2rem; border: 2px solid #c9a227; border-radius: 8px; background: white; cursor: pointer;">&larr;</button>
-        <div class="date" id="current-date" style="font-size: 1.1rem; font-weight: 600; min-width: 200px; text-align: center;">Loading...</div>
-        <button onclick="changeDay(1)" style="padding: 8px 16px; font-size: 1.2rem; border: 2px solid #c9a227; border-radius: 8px; background: white; cursor: pointer;">&rarr;</button>
-        <button onclick="goToToday()" style="padding: 8px 12px; font-size: 0.9rem; border: 2px solid #3498db; border-radius: 8px; background: #3498db; color: white; cursor: pointer;">Today</button>
+
+    <!-- Store Selector -->
+    <select id="store-filter" onchange="updateTables()" style="padding: 8px 14px; font-size: 0.95rem; border: 2px solid #d4a574; border-radius: 8px; background: white; cursor: pointer; color: #5a4a3a;">
+        <option value="CAFE">Cafe FeelLove</option>
+        <option value="FEELLOVE">Riverside</option>
+        <option value="SNOW">Snow Canyon</option>
+        <option value="ZION">Zion Springdale</option>
+    </select>
+
+    <!-- Date Navigation -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <button onclick="changeDay(-1)" style="padding: 6px 12px; font-size: 1rem; border: 2px solid #d4a574; border-radius: 6px; background: white; cursor: pointer; color: #5a4a3a;">←</button>
+        <div class="date" id="current-date" style="font-size: 0.95rem; font-weight: 600; min-width: 180px; text-align: center; color: #5a4a3a;">Loading...</div>
+        <button onclick="changeDay(1)" style="padding: 6px 12px; font-size: 1rem; border: 2px solid #d4a574; border-radius: 6px; background: white; cursor: pointer; color: #5a4a3a;">→</button>
+        <button onclick="goToToday()" style="padding: 6px 12px; font-size: 0.85rem; border: none; border-radius: 6px; background: #d4a574; color: white; cursor: pointer;">Today</button>
     </div>
-    <div class="date print-only" id="print-date" style="font-size: 1.1rem;"></div>
-    <div class="store-selector no-print" style="display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap;">
-        <select id="store-filter" onchange="updateTables()">
-            <option value="CAFE">Cafe FeelLove</option>
-            <option value="FEELLOVE">Riverside</option>
-            <option value="SNOW">Snow Canyon</option>
-            <option value="ZION">Zion Springdale</option>
-        </select>
-        <button id="btn-update-schedule" onclick="updateSchedule()" style="padding: 8px 12px; font-size: 0.85rem; border: 2px solid #27ae60; border-radius: 8px; background: white; color: #27ae60; cursor: pointer; font-weight: 500;">
-            ↻ Schedule
-        </button>
-        <button id="btn-update-sales" onclick="updateSales()" style="padding: 8px 12px; font-size: 0.85rem; border: 2px solid #3498db; border-radius: 8px; background: white; color: #3498db; cursor: pointer; font-weight: 500;">
-            ↻ Sales
-        </button>
-    </div>
-    <div class="store-selector print-only">
-        <select id="store-filter-print" disabled>
-            <option value="CAFE">Cafe FeelLove</option>
-            <option value="FEELLOVE">Riverside</option>
-            <option value="SNOW">Snow Canyon</option>
-            <option value="ZION">Zion Springdale</option>
-        </select>
-    </div>
-    <div id="sync-status" class="no-print" style="margin-top: 8px; font-size: 0.85rem; color: #7f8c8d; min-height: 18px; text-align: center;"></div>
-    <div class="no-print" style="margin-top: 8px;">
-        <button onclick="printDashboard()" style="padding: 8px 20px; font-size: 0.9rem; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 500;">
-            🖨 Print Dashboard
-        </button>
+
+    <!-- Action Buttons -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+        <button id="btn-update-schedule" onclick="updateSchedule()" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid #7eb8a2; border-radius: 6px; background: white; color: #5a9a7a; cursor: pointer;">↻ Schedule</button>
+        <button id="btn-update-sales" onclick="updateSales()" style="padding: 6px 12px; font-size: 0.8rem; border: 1px solid #a8c5d4; border-radius: 6px; background: white; color: #5a8fa8; cursor: pointer;">↻ Sales</button>
+        <button onclick="printDashboard()" style="padding: 6px 14px; font-size: 0.85rem; background: #e8b4b8; color: white; border: none; border-radius: 6px; cursor: pointer;">🖨 Print</button>
     </div>
 </header>
+<div id="sync-status" class="no-print" style="font-size: 0.8rem; color: #7f8c8d; min-height: 16px; text-align: center; padding: 4px;"></div>
+<div class="date print-only" id="print-date" style="font-size: 1.1rem;"></div>
 
 <!-- PROGRESS SECTION -->
 <section class="progress-section">
@@ -177,23 +168,23 @@
     </div>
 
     <!-- TODAY'S TARGETS - Big and Clear -->
-    <div style="background: linear-gradient(135deg, #2c3e50, #34495e); border-radius: 16px; padding: 24px; margin-bottom: 20px; color: white;">
-        <div style="text-align: center; margin-bottom: 16px; font-size: 1.1rem; opacity: 0.9;">Today's Targets</div>
+    <div style="background: linear-gradient(135deg, #d4a574, #e8c4a0); border-radius: 16px; padding: 24px; margin-bottom: 20px; color: #5a4a3a;">
+        <div style="text-align: center; margin-bottom: 16px; font-size: 1.1rem; font-weight: 500;">Today's Targets</div>
         <div class="daily-targets" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
             <!-- Daily Sales Target -->
             <div>
                 <div id="daily-sales-target" style="font-size: 2rem; font-weight: 700;">$0</div>
-                <div style="font-size: 0.85rem; opacity: 0.8;">Sales Goal</div>
+                <div style="font-size: 0.85rem; opacity: 0.7;">Sales Goal</div>
             </div>
             <!-- Daily Orders Target -->
             <div>
                 <div id="daily-orders-target" style="font-size: 2rem; font-weight: 700;">0</div>
-                <div style="font-size: 0.85rem; opacity: 0.8;">Orders Goal</div>
+                <div style="font-size: 0.85rem; opacity: 0.7;">Orders Goal</div>
             </div>
             <!-- Daily AOV Target -->
             <div>
                 <div id="daily-aov-target" style="font-size: 2rem; font-weight: 700;">$0</div>
-                <div style="font-size: 0.85rem; opacity: 0.8;">AOV Goal</div>
+                <div style="font-size: 0.85rem; opacity: 0.7;">AOV Goal</div>
             </div>
         </div>
     </div>
@@ -201,24 +192,24 @@
     <!-- Secondary Info Row -->
     <div class="target-cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
         <!-- Month Progress -->
-        <div class="target-card" style="background: #fff; border: 2px solid #3498db; border-radius: 12px; padding: 16px; text-align: center;">
-            <div id="target-remaining" style="font-size: 1.3rem; font-weight: 700; color: #3498db;">$0</div>
-            <div style="font-size: 0.8rem; color: #7f8c8d;">Left This Month</div>
+        <div class="target-card" style="background: #fff; border: 2px solid #a8c5d4; border-radius: 12px; padding: 16px; text-align: center;">
+            <div id="target-remaining" style="font-size: 1.3rem; font-weight: 700; color: #5a8fa8;">$0</div>
+            <div style="font-size: 0.8rem; color: #9a8a7a;">Left This Month</div>
         </div>
         <!-- Days Left -->
-        <div class="target-card" style="background: #fff; border: 2px solid #9b59b6; border-radius: 12px; padding: 16px; text-align: center;">
-            <div id="target-days-left" style="font-size: 1.3rem; font-weight: 700; color: #9b59b6;">0</div>
-            <div style="font-size: 0.8rem; color: #7f8c8d;">Days Left</div>
+        <div class="target-card" style="background: #fff; border: 2px solid #c9b8d4; border-radius: 12px; padding: 16px; text-align: center;">
+            <div id="target-days-left" style="font-size: 1.3rem; font-weight: 700; color: #8a7a9a;">0</div>
+            <div style="font-size: 0.8rem; color: #9a8a7a;">Days Left</div>
         </div>
         <!-- Pace Status -->
-        <div id="pace-status-card" class="target-card" style="background: #fff; border: 2px solid #27ae60; border-radius: 12px; padding: 16px; text-align: center;">
-            <div id="pace-status" style="font-size: 1.1rem; font-weight: 700; color: #27ae60;">On Track</div>
-            <div id="pace-status-detail" style="font-size: 0.8rem; color: #7f8c8d;">vs. pace</div>
+        <div id="pace-status-card" class="target-card" style="background: #fff; border: 2px solid #a8d4c0; border-radius: 12px; padding: 16px; text-align: center;">
+            <div id="pace-status" style="font-size: 1.1rem; font-weight: 700; color: #5a9a7a;">On Track</div>
+            <div id="pace-status-detail" style="font-size: 0.8rem; color: #9a8a7a;">vs. pace</div>
         </div>
         <!-- vs Last Year -->
-        <div class="target-card" style="background: #fff; border: 2px solid #7f8c8d; border-radius: 12px; padding: 16px; text-align: center;">
-            <div id="yoy-change" style="font-size: 1.1rem; font-weight: 700; color: #7f8c8d;">--%</div>
-            <div style="font-size: 0.8rem; color: #7f8c8d;">vs. Last Year</div>
+        <div class="target-card" style="background: #fff; border: 2px solid #e8b4b8; border-radius: 12px; padding: 16px; text-align: center;">
+            <div id="yoy-change" style="font-size: 1.1rem; font-weight: 700; color: #b87a7e;">--%</div>
+            <div style="font-size: 0.8rem; color: #9a8a7a;">vs. Last Year</div>
         </div>
     </div>
 

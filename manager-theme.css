@@ -1,21 +1,23 @@
 /**
  * FeelLove Manager Theme - Mobile-First Design
- * Optimized for store managers, not finance
+ * Warm, feminine color palette
  */
 
 :root {
-    --feellove-gold: #c9a227;
-    --feellove-gold-light: #e8d48a;
-    --success-green: #27ae60;
-    --success-green-light: #d5f4e2;
-    --warning-orange: #f39c12;
-    --text-primary: #2c3e50;
-    --text-secondary: #7f8c8d;
-    --bg-primary: #f8f9fa;
+    --feellove-gold: #d4a574;
+    --feellove-gold-light: #f0e4d7;
+    --success-green: #7eb8a2;
+    --success-green-light: #e8f4ef;
+    --warning-orange: #e8a87c;
+    --accent-rose: #e8b4b8;
+    --accent-rose-light: #fdf2f3;
+    --text-primary: #5a4a3a;
+    --text-secondary: #9a8a7a;
+    --bg-primary: #fdfbf8;
     --bg-card: #ffffff;
-    --border-light: #e0e0e0;
-    --shadow-soft: 0 2px 8px rgba(0,0,0,0.08);
-    --shadow-medium: 0 4px 16px rgba(0,0,0,0.12);
+    --border-light: #e8ddd0;
+    --shadow-soft: 0 2px 8px rgba(90,74,58,0.06);
+    --shadow-medium: 0 4px 16px rgba(90,74,58,0.10);
 }
 
 /* Base Reset */
