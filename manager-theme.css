@@ -1,0 +1,579 @@
+/**
+ * FeelLove Manager Theme - Mobile-First Design
+ * Optimized for store managers, not finance
+ */
+
+:root {
+    --feellove-gold: #c9a227;
+    --feellove-gold-light: #e8d48a;
+    --success-green: #27ae60;
+    --success-green-light: #d5f4e2;
+    --warning-orange: #f39c12;
+    --text-primary: #2c3e50;
+    --text-secondary: #7f8c8d;
+    --bg-primary: #f8f9fa;
+    --bg-card: #ffffff;
+    --border-light: #e0e0e0;
+    --shadow-soft: 0 2px 8px rgba(0,0,0,0.08);
+    --shadow-medium: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+/* Base Reset */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    margin: 0;
+    padding: 16px;
+    line-height: 1.5;
+}
+
+/* Header */
+.dashboard-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.dashboard-header h1 {
+    font-size: 1.75rem;
+    margin: 0 0 8px 0;
+    color: var(--text-primary);
+}
+
+.dashboard-header .date {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+}
+
+.date-nav {
+    justify-content: center;
+}
+
+.date-nav button {
+    transition: all 0.2s;
+}
+
+.date-nav button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.store-selector {
+    margin-top: 16px;
+}
+
+.store-selector select {
+    font-size: 1rem;
+    padding: 12px 20px;
+    border: 2px solid var(--feellove-gold);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    min-width: 200px;
+    cursor: pointer;
+}
+
+/* Progress Ring */
+.progress-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+}
+
+.progress-ring-container {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin: 0 auto 16px;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+}
+
+.progress-ring-bg {
+    fill: none;
+    stroke: #e8e8e8;
+    stroke-width: 12;
+}
+
+.progress-ring-fill {
+    fill: none;
+    stroke: var(--success-green);
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.progress-ring-fill.warning {
+    stroke: var(--warning-orange);
+}
+
+.progress-ring-fill.gold {
+    stroke: var(--feellove-gold);
+}
+
+.progress-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.progress-percentage {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.progress-label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.progress-amounts {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.motivational-message {
+    font-size: 1.1rem;
+    color: var(--success-green);
+    font-weight: 500;
+}
+
+.motivational-message.warning {
+    color: var(--warning-orange);
+}
+
+/* Team Section */
+.team-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-soft);
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 16px 0;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 24px;
+    background: var(--feellove-gold);
+    border-radius: 2px;
+}
+
+/* Staff Cards */
+.staff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.staff-card {
+    background: var(--bg-primary);
+    border-radius: 12px;
+    padding: 16px;
+    border-left: 4px solid var(--feellove-gold);
+}
+
+.staff-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 12px;
+}
+
+.staff-name {
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.staff-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.staff-shift {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    background: #e8f4fc;
+    padding: 4px 12px;
+    border-radius: 20px;
+}
+
+.staff-note-input {
+    width: 100%;
+    min-height: 44px;
+    padding: 12px;
+    font-size: 16px; /* Prevents iOS zoom */
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-card);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.staff-note-input:focus {
+    outline: none;
+    border-color: var(--feellove-gold);
+}
+
+.staff-note-input::placeholder {
+    color: var(--text-secondary);
+}
+
+.note-status {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    min-height: 18px;
+}
+
+.note-status.saving {
+    color: var(--warning-orange);
+}
+
+.note-status.saved {
+    color: var(--success-green);
+}
+
+/* Day Notes */
+.day-notes-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-soft);
+}
+
+.day-note-input {
+    width: 100%;
+    min-height: 100px;
+    padding: 16px;
+    font-size: 16px;
+    border: 2px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.day-note-input:focus {
+    outline: none;
+    border-color: var(--feellove-gold);
+}
+
+/* Quick Stats */
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    box-shadow: var(--shadow-soft);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Print Button */
+.print-button {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: var(--success-green);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: background 0.2s;
+}
+
+.print-button:hover {
+    background: #219a52;
+}
+
+.print-button:active {
+    transform: scale(0.98);
+}
+
+/* Collapsible Finance Section */
+.finance-section {
+    background: var(--bg-card);
+    border-radius: 16px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-soft);
+    overflow: hidden;
+}
+
+.finance-toggle {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 1rem;
+    font-weight: 500;
+    background: var(--bg-card);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary);
+}
+
+.finance-toggle:hover {
+    background: var(--bg-primary);
+}
+
+.finance-toggle::after {
+    content: '+';
+    font-size: 1.5rem;
+    font-weight: 300;
+}
+
+.finance-toggle.expanded::after {
+    content: '-';
+}
+
+.finance-content {
+    display: none;
+    padding: 0 20px 20px;
+}
+
+.finance-content.show {
+    display: block;
+}
+
+/* Data Tables (finance section) */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 16px;
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.data-table th {
+    background: var(--bg-primary);
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.data-table tr:hover {
+    background: #fffacd;
+}
+
+.negative {
+    color: #e74c3c;
+}
+
+.positive {
+    color: var(--success-green);
+}
+
+/* Desktop Layout */
+@media (min-width: 768px) {
+    body {
+        padding: 24px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 24px;
+    }
+
+    .main-column {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .side-column {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .progress-ring-container {
+        width: 200px;
+        height: 200px;
+    }
+
+    .quick-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: left;
+    }
+}
+
+/* Large Desktop */
+@media (min-width: 1024px) {
+    .quick-stats {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+}
+
+/* No Schedule Message */
+.no-schedule {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+}
+
+.no-schedule-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
+/* Loading State */
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-light);
+    border-top-color: var(--feellove-gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Gantt Chart in Team Section */
+.schedule-gantt {
+    margin-top: 16px;
+    overflow-x: auto;
+}
+
+.gantt-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.gantt-name {
+    width: 100px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.gantt-bar-container {
+    flex: 1;
+    height: 32px;
+    background: #e8e8e8;
+    border-radius: 6px;
+    position: relative;
+    min-width: 200px;
+}
+
+.gantt-bar {
+    position: absolute;
+    height: 100%;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* Totals Footer */
+.staff-totals {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px;
+    background: var(--bg-primary);
+    border-radius: 8px;
+    margin-top: 16px;
+    font-weight: 600;
+}
+
+/* Print layout wrapper - stacked on screen */
+.print-two-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Hide print-only elements on screen */
+.print-only {
+    display: none;
+}
+
+/* Print chart - hidden on screen */
+.print-chart {
+    display: none;
+}

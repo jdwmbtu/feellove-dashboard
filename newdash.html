@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SNOW Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 20px; }
+        h1 { text-align: center; }
+        .metrics { display: flex; justify-content: space-around; flex-wrap: wrap; margin: 30px 0; font-size: 1.5em; }
+        .box { border: 3px solid #333; border-radius: 12px; padding: 20px; margin: 10px; text-align: center; min-width: 220px; background: #f9f9f9; }
+        .gantt { margin-top: 40px; }
+        .gantt-header { display: grid; grid-template-columns: 150px repeat(13, 1fr); font-weight: bold; border-bottom: 3px solid #333; padding: 10px 0; background: #f0f0f0; }
+        .hour { text-align: center; font-size: 0.8em; position: relative; }
+        .employee-row { display: grid; grid-template-columns: 150px 1fr; margin: 8px 0; align-items: center; gap: 10px; }
+        .employee-name { font-weight: bold; padding-left: 10px; }
+        .timeline { position: relative; height: 50px; background: #eee; border-radius: 8px; overflow: hidden; }
+        .shift-bar { position: absolute; top: 6px; height: 38px; background: #4CAF50; border-radius: 6px; color: white; text-align: center; line-height: 38px; font-size: 0.95em; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .print-btn { display: block; margin: 60px auto; padding: 20px 60px; font-size: 2em; background: #007bff; color: white; border: none; border-radius: 12px; cursor: pointer; }
+        @media print { .no-print { display: none; } }
+    </style>
+</head>
+<body>
+    <h1>SNOW Dashboard – <span id="today"></span></h1>
+    <div class="metrics no-print">
+        <div class="box">Today Sales: $<span id="today-sales">loading…</span></div>
+        <div class="box">Goal: $<span id="goal">loading…</span></div>
+        <div class="box">Yesterday Sales: $<span id="yesterday-sales">loading…</span></div>
+    </div>
+
+    <div style="display: flex; gap: 40px; flex-wrap: wrap; margin-top: 40px; align-items: flex-start;">
+        <!-- Left: Schedule -->
+        <div style="flex: 2; min-width: 600px;">
+            <h2>Schedule</h2>
+            <div id="gantt-chart" class="gantt">Loading schedule…</div>
+        </div>
+
+        <!-- Right: Today’s Plan -->
+        <div style="flex: 1; min-width: 340px; display: flex; flex-direction: column;">
+            <div style="display: grid; grid-template-columns: 150px 1fr 1fr; background:#2c3e50; color:white; height:52px; border-radius:12px 12px 0 0;">
+                <div style="display:flex; align-items:center; justify-content:center; font-weight:bold;">Metric</div>
+                <div style="display:flex; align-items:center; justify-content:center; font-weight:bold;">Forecast</div>
+                <div style="position:relative; display:flex; align-items:center; justify-content:center;">
+                    <select id="growth-target-today" style="position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;">
+                        <option value="10">+10%</option>
+                        <option value="15" selected>+15%</option>
+                        <option value="20">+20%</option>
+                        <option value="25">+25%</option>
+                        <option value="10000" data-type="dollar">$10K</option>
+                        <option value="15000" data-type="dollar">$15K</option>
+                        <option value="20000" data-type="dollar">$20K</option>
+                        <option value="25000" data-type="dollar">$25K</option>
+                    </select>
+                    <span id="target-display" style="pointer-events:none; font-weight:bold; font-size:1.1em;">+15%</span>
+                </div>
+            </div>
+
+            <table style="width:100%; border-collapse:collapse; font-size:1.4em; background:white; box-shadow:0 4px 12px rgba(0,0,0,0.1); border-radius:0 0 12px 12px; overflow:hidden;">
+                <tbody>
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:14px 20px; font-weight:bold;">Customers</td>
+                        <td id="today-customers-forecast" style="text-align:center;">—</td>
+                        <td id="today-customers-target" style="text-align:center;">—</td>
+                    </tr>
+                    <tr style="background:white;">
+                        <td style="padding:14px 20px; font-weight:bold;">Net Sales</td>
+                        <td id="today-sales-forecast" style="text-align:center;">—</td>
+                        <td id="today-sales-target" style="text-align:center; font-weight:bold; color:#27ae60;">—</td>
+                    </tr>
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:14px 20px; font-weight:bold;">AOV</td>
+                        <td id="today-aov-forecast" style="text-align:center;">—</td>
+                        <td id="today-aov-target" style="text-align:center;">—</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="text-align:center; margin-top:8px; font-size:0.9em; color:#7f8c8d;">
+                Today: <span id="today-plan-date">—</span>
+            </div>
+        </div>
+    </div>
+
+    <button class="print-btn no-print" onclick="window.print()">PRINT THIS PAGE</button>
+
+<script>
+    const sheetId = "1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo";
+    const salesTab = "Net Sales";
+    const scheduleTab = "Schedule-SNOW";
+    const ordersTab = "Orders";
+
+    let netsalesData = [];
+    let ordersData = [];
+
+    // === STORE SELECTION (future-proof) ===
+    let CURRENT_STORE = "SNOW";                                          // ← change this or hook to dropdown later
+    const STORE_COL = () => storeColumns[CURRENT_STORE];                 // dynamic column index
+
+    const storeColumns = { CAFE: 3, FEELLOVE: 4, SNOW: 5, ZION: 6 };
+    const CURRENT_DATE = new Date('2025-11-19');
+    let isAdjusted = true;
+    let growthTarget = 15;
+    let growthType = 'percent';
+
+    function getLastDataDate(store, month) {
+        const idx = storeColumns[store];
+        let last = null;
+        netsalesData.forEach(row => {
+            const d = new Date(row[2]);
+            if (isNaN(d)) return;
+            if (month && d.toLocaleString('en-US', { month: 'long' }) !== month) return;
+            const v = row[idx];
+            if (!v || v.toString().trim() === '') return;
+            const num = parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0);
+            if (num === 0) return;
+            if (!last || d > last) last = d;
+        });
+        return last;
+    }
+
+    function formatNumber(v, aov = false) {
+        if (v === 0) return aov ? '$0.00' : '$0';
+        const abs = Math.abs(v);
+        let fmt = aov ? abs.toFixed(2) : Math.round(abs).toLocaleString('en-US');
+        return v < 0 ? `<span class="negative">($${fmt})</span>` : `$${fmt}`;
+    }
+
+    function formatMT(timeStr) {
+        let [h, m] = timeStr.split(":").map(Number);
+        h = (h - 7 + 24) % 24;
+        return `${h}:${m.toString().padStart(2,"0")}`;
+    }
+
+    const today = new Date();
+    document.getElementById("today").textContent = today.toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById("today-plan-date").textContent = today.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
+    const todayShort = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+
+    Promise.all([
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(salesTab)}`).then(r => r.text()),
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(ordersTab)}`).then(r => r.text()),
+        fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(scheduleTab)}`).then(r => r.text())
+    ]).then(([salesCsv, ordersCsv, scheduleText]) => {
+        netsalesData = salesCsv.split("\n").map(l => l.replace(/"/g,"").split(","));
+        ordersData = ordersCsv.split("\n").map(l => l.replace(/"/g,"").split(","));
+
+        // === TOP METRICS – SNOW ONLY ===
+        const salesCol = STORE_COL();
+        const sales = netsalesData.slice(1).map(row => parseFloat(row[salesCol]) || 0).filter(v => v > 0);
+        if (sales.length > 0) document.getElementById("today-sales").textContent = sales[sales.length-1].toFixed(2);
+        if (sales.length > 1) document.getElementById("yesterday-sales").textContent = sales[sales.length-2].toFixed(2);
+        document.getElementById("goal").textContent = "3000.00";
+
+        // === GANTT CHART (unchanged) ===
+        // ... [your existing Gantt code unchanged] ...
+
+        // === TODAY FORECAST – SNOW ONLY ===
+        const todayName = today.toLocaleDateString('en-US', {weekday: 'long'});
+
+        // Customers forecast
+        let pastOrders = [];
+        ordersData.slice(1).forEach(row => {
+            const d = new Date(row[2]);
+            if (d >= today || d.toLocaleDateString('en-US', {weekday: 'long'}) !== todayName) return;
+            const orders = parseFloat(row[salesCol]) || 0;
+            if (orders > 0) pastOrders.push(orders);
+        });
+        const predOrders = pastOrders.length >= 3 
+            ? Math.round(pastOrders.slice(-3).reduce((a,b)=>a+b,0)/3) 
+            : (pastOrders.length > 0 ? Math.round(pastOrders.reduce((a,b)=>a+b,0)/pastOrders.length) : 80);
+
+        // AOV forecast
+        let totalSales = 0, totalCust = 0, daysUsed = 0;
+        netsalesData.slice(1).forEach((sRow, i) => {
+            const d = new Date(sRow[2]);
+            if (d >= today || d.toLocaleDateString('en-US', {weekday: 'long'}) !== todayName) return;
+            const salesVal = parseFloat(sRow[salesCol]) || 0;
+            const oRow = ordersData[i+1];
+            const cust = oRow ? parseFloat(oRow[salesCol]) || 0 : 0;
+            if (salesVal > 0 && cust > 0) {
+                totalSales += salesVal;
+                totalCust += cust;
+                daysUsed++;
+            }
+        });
+        const recentAOV = daysUsed > 0 ? totalSales / totalCust : 42;
+        const predSales = Math.round(predOrders * recentAOV);
+
+        document.getElementById("today-customers-forecast").textContent = predOrders;
+        document.getElementById("today-sales-forecast").textContent = "$" + predSales.toLocaleString();
+        document.getElementById("today-aov-forecast").textContent = "$" + (predOrders > 0 ? (predSales / predOrders).toFixed(2) : "0.00");
+
+        // === TARGET UPDATE ===
+        function updateTarget() {
+            const sel = document.getElementById("growth-target-today");
+            const opt = sel.options[sel.selectedIndex];
+            growthTarget = parseFloat(sel.value);
+            growthType = opt.hasAttribute("data-type") ? 'dollar' : 'percent';
+            document.getElementById("target-display").textContent = opt.text;
+
+            const monthName = today.toLocaleDateString("en-US", {month: "long"});
+            const data = calculateSalesData("SNOW", monthName);
+            const remaining = Math.max(0, (data.mtdTarget + data.romTarget) - data.mtd2025);
+            const result = getNextDayTargetedNetSales("SNOW", monthName, remaining, netsalesData, today, ordersData);
+
+            document.getElementById("today-sales-target").textContent = "$" + Math.round(result.value).toLocaleString();
+            document.getElementById("today-customers-target").textContent = Math.round(result.customers);
+            const targetAOV = result.customers > 0 ? result.value / result.customers : 0;
+            document.getElementById("today-aov-target").textContent = "$" + targetAOV.toFixed(2);
+        }
+
+        document.getElementById("growth-target-today").addEventListener("change", updateTarget);
+        updateTarget();
+    });
+
+/* -------------------------------------------------------------
+   CALCULATE SALES DATA
+   ------------------------------------------------------------- */
+function calculateSalesData(store, month) {
+    const idx = storeColumns[store];
+    const monthIndex = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(month);
+    const totalDays = new Date(2025, monthIndex + 1, 0).getDate();
+    const shift = isAdjusted ? 1 : 0;
+
+    const now = new Date();
+    const lastDay2025 = new Date(2025, monthIndex + 1, 0);
+    const monthEnded = now > lastDay2025;
+
+    let last2025 = null;
+    let mtd2025 = 0;
+    let isMonthStarted = false;
+
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (isNaN(d) || d.getFullYear() !== 2025 || d.toLocaleString('en-US',{month:'long'}) !== month) return;
+        const v = row[idx];
+        if (!v || v.toString().trim() === '') return;
+
+        isMonthStarted = true;
+        mtd2025 += parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0);
+        if (!last2025 || d > last2025) last2025 = d;
+    });
+
+    // Allow future months in 2025 to show target
+    if (!isMonthStarted && monthIndex >= CURRENT_DATE.getMonth() && CURRENT_DATE.getFullYear() === 2025) {
+        isMonthStarted = true;
+        mtd2025 = 0;
+        last2025 = null; // no data → first day of month
+    }
+
+    if (!isMonthStarted) {
+        const full2024 = netsalesData.reduce((s, r) => {
+            const d = new Date(r[2]);
+            if (d.getFullYear() !== 2024 || d.toLocaleString('en-US',{month:'long'}) !== month) return s;
+            const day = d.getDate();
+            if (day < (1 + shift) || day > (totalDays + shift)) return s;
+
+            const v = r[idx];
+            if (!v || v.toString().trim() === '') return s;
+
+            if (shift === 1 && day === 1) {
+                const nextMonthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][(monthIndex + 1) % 12];
+                if (d.toLocaleString('en-US', { month: 'long' }) === nextMonthName) {
+                    return s + (parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0));
+                }
+            }
+            return s + (parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0));
+        }, 0);
+
+        const growthAmount = growthTarget * 1000;
+let romTarget = growthType === 'percent' ? rom2024 * (1 + growthTarget / 100) : rom2024 + growthAmount;
+        return {
+            mtd2024: 0, mtd2025: 0, mtdTarget: 0,
+            rom2024: Math.round(full2024), rom2025: 0, romTarget: Math.round(romTarget)
+        };
+    }
+
+    if (monthEnded && last2025 && last2025 >= lastDay2025) {
+        const mtd2024 = netsalesData.reduce((s, r) => {
+            const d = new Date(r[2]);
+            if (d.getFullYear() !== 2024 || d.toLocaleString('en-US',{month:'long'}) !== month) return s;
+            const day = d.getDate();
+            if (day < (1 + shift) || day > (totalDays + shift)) return s;
+
+            const v = r[idx];
+            if (!v || v.toString().trim() === '') return s;
+
+            if (shift === 1 && day === 1) {
+                const nextMonthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][(monthIndex + 1) % 12];
+                if (d.toLocaleString('en-US', { month: 'long' }) === nextMonthName) {
+                    return s + (parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0));
+                }
+            }
+            return s + (parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0));
+        }, 0);
+
+        let mtdTarget;
+        if (growthType === 'percent') {
+            mtdTarget = mtd2024 * (1 + growthTarget / 100);
+        } else {
+            const growthAmount = growthTarget * 1000;
+            mtdTarget = mtd2024 + growthAmount;
+        }
+
+        return {
+            mtd2024: Math.round(mtd2024),
+            mtd2025: Math.round(mtd2025),
+            mtdTarget: Math.round(mtdTarget),
+            rom2024: 0, rom2025: 0, romTarget: 0
+        };
+    }
+
+    const elapsedDays = last2025 ? last2025.getDate() : 0;
+
+    mtd2025 = netsalesData.reduce((s, r) => {
+        const d = new Date(r[2]);
+        if (d.getFullYear() !== 2025 || d > last2025 || d.toLocaleString('en-US',{month:'long'}) !== month) return s;
+        const v = r[idx];
+        return s + (v && v.toString().trim() !== '' ? parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0) : 0);
+    }, 0);
+
+    const mtd2024 = netsalesData.reduce((s, r) => {
+        const d = new Date(r[2]);
+        if (d.getFullYear() !== 2024 || d.toLocaleString('en-US',{month:'long'}) !== month) return s;
+        const day = d.getDate();
+        if (day < (1 + shift) || day > (elapsedDays + shift)) return s;
+        const v = r[idx];
+        return s + (v && v.toString().trim() !== '' ? parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0) : 0);
+    }, 0);
+
+    const rom2024 = netsalesData.reduce((s, r) => {
+        const d = new Date(r[2]);
+        if (d.getFullYear() !== 2024) return s;
+        const rowMonth = d.toLocaleString('en-US', { month: 'long' });
+        const day = d.getDate();
+
+        if (rowMonth === month && day > (elapsedDays + shift) && day <= (totalDays + shift)) {
+            const v = r[idx];
+            return s + (v && v.toString().trim() !== '' ? parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0) : 0);
+        }
+
+        if (shift === 1 && day === 1) {
+            const nextMonthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][(monthIndex + 1) % 12];
+            if (rowMonth === nextMonthName) {
+                const v = r[idx];
+                return s + (v && v.toString().trim() !== '' ? parseFloat(v.toString().replace(/[^0-9.-]+/g, '') || 0) : 0);
+            }
+        }
+        return s;
+    }, 0);
+
+    let mtdTarget, romTarget;
+    const total2024 = mtd2024 + rom2024;
+    const growthAmount = growthTarget * 1000;
+
+    if (growthType === 'percent') {
+        const factor = 1 + growthTarget / 100;
+        mtdTarget = mtd2024 * factor;
+        romTarget = rom2024 * factor;
+        } else {
+        const growthAmount = growthTarget * 1000;
+
+        // Calculate average sales per weekday in 2024 for the month
+        const dayAverages = {};
+        const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+        days.forEach(d => dayAverages[d] = 0);
+
+        let count = {};
+        days.forEach(d => count[d] = 0);
+
+        netsalesData.forEach(row => {
+            const d = new Date(row[2]);
+            if (d.getFullYear() !== 2024 || 
+                d.toLocaleString('en-US', { month: 'long' }) !== month) return;
+
+            const dayName = d.toLocaleString('en-US', { weekday: 'long' });
+            const cell = row[storeColumns[store]];
+            const sales = (cell != null && cell.toString().trim() !== '') 
+                ? parseFloat(cell.toString().replace(/[^0-9.-]+/g, '')) || 0 
+                : 0;
+
+            dayAverages[dayName] += sales;
+            count[dayName]++;
+        });
+
+        days.forEach(d => {
+            dayAverages[d] = count[d] > 0 ? dayAverages[d] / count[d] : 0;
+        });
+
+        // Count how many of each weekday in the month
+        const monthDayCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 };
+        for (let d = 1; d <= totalDays; d++) {
+            const date = new Date(2025, monthIndex, d);
+            const dayName = date.toLocaleString('en-US', { weekday: 'long' });
+            monthDayCount[dayName]++;
+        }
+
+        // Total expected sales for full month
+        let totalExpected = 0;
+        days.forEach(d => {
+            totalExpected += dayAverages[d] * monthDayCount[d];
+        });
+
+        // MTD and ROM expected sales
+        let mtdExpected = 0;
+        let romExpected = 0;
+
+        for (let d = 1; d <= totalDays; d++) {
+            const date = new Date(2025, monthIndex, d);
+            const dayName = date.toLocaleString('en-US', { weekday: 'long' });
+            const expected = dayAverages[dayName];
+
+            if (d <= elapsedDays) {
+                mtdExpected += expected;
+            } else {
+                romExpected += expected;
+            }
+        }
+
+        // Prorate growth
+        const mtdShare = totalExpected > 0 ? mtdExpected / totalExpected : 0;
+        const romShare = totalExpected > 0 ? romExpected / totalExpected : 0;
+
+        mtdTarget = Math.round(mtd2024 + growthAmount * mtdShare);
+        romTarget = Math.round(rom2024 + growthAmount * romShare);
+    }
+
+    mtdTarget = Math.round(mtdTarget);
+    romTarget = Math.round(romTarget);
+
+    const rom2025 = mtd2024 > 0 ? rom2024 * (mtd2025 / mtd2024) : 0;
+
+    return {
+        mtd2024: Math.round(mtd2024),
+        mtd2025: Math.round(mtd2025),
+        mtdTarget: mtdTarget,
+        rom2024: Math.round(rom2024),
+        rom2025: Math.round(rom2025),
+        romTarget: romTarget,
+        elapsedDays: elapsedDays,
+        last2025: last2025  // ADD THIS
+    };
+}
+
+/* -------------------------------------------------------------
+   NEXT DAY TARGETED NET SALES – MAX OF CALC OR AVG
+   ------------------------------------------------------------- */
+function getNextDayTargetedNetSales(store, month, remaining$, netsalesData, nextDayDate) {
+    if (!nextDayDate) return { value: 0, source: 'No next day' };
+
+    const nextWeekday = nextDayDate.toLocaleString('en-US', { weekday: 'long' });
+    const monthIndex = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(month);
+    const totalDays = new Date(2025, monthIndex + 1, 0).getDate();
+
+    // Count remaining days of each weekday
+    const remainingCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 };
+    for (let d = nextDayDate.getDate(); d <= totalDays; d++) {
+        const date = new Date(2025, monthIndex, d);
+        const dayName = date.toLocaleString('en-US', { weekday: 'long' });
+        remainingCount[dayName]++;
+    }
+
+    const nextDayCount = remainingCount[nextWeekday];
+
+    // Use 2025 if ≥7 days, else 2024
+    let days2025 = 0;
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (d.getFullYear() === 2025 && 
+            d.toLocaleString('en-US', { month: 'long' }) === month) {
+            const val = row[storeColumns[store]];
+            if (val != null && val.toString().trim() !== '') {
+                days2025++;
+            }
+        }
+    });
+
+    const use2025 = days2025 >= 7;
+    const sourceYear = use2025 ? '2025' : '2024';
+
+    // Calculate averages for THIS store and month
+    const dayAverages = {};
+    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    days.forEach(d => dayAverages[d] = 0);
+
+    let count = {};
+    days.forEach(d => count[d] = 0);
+
+    const lastDataDate = getLastDataDate(store, month);
+
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (d.getFullYear() !== (use2025 ? 2025 : 2024) || 
+            d.toLocaleString('en-US', { month: 'long' }) !== month) return;
+
+        // Only include days that have occurred
+        if (use2025 && lastDataDate && d > lastDataDate) return;
+
+        const dayName = d.toLocaleString('en-US', { weekday: 'long' });
+        const cell = row[storeColumns[store]];
+        const sales = (cell != null && cell.toString().trim() !== '') 
+            ? parseFloat(cell.toString().replace(/[^0-9.-]+/g, '')) || 0 
+            : 0;
+
+        dayAverages[dayName] += sales;
+        count[dayName]++;
+    });
+
+    let weeklyTotal = 0;
+    days.forEach(d => {
+        dayAverages[d] = count[d] > 0 ? dayAverages[d] / count[d] : 0;
+        weeklyTotal += dayAverages[d];
+    });
+
+    const nextDayAvg = dayAverages[nextWeekday] || 0;
+
+    // Total expected sales in remaining period
+    let totalRemainingExpected = 0;
+    days.forEach(d => {
+        totalRemainingExpected += dayAverages[d] * remainingCount[d];
+    });
+
+    const nextDayContribution = nextDayAvg * 1;  // only 1 instance of next day
+    const share = totalRemainingExpected > 0 ? nextDayContribution / totalRemainingExpected : 0;
+    const calculatedTarget = remaining$ * share;
+
+    // Final target = MAX(calculated, nextDayAvg)
+    const target = Math.max(calculatedTarget, nextDayAvg);
+
+    // Source string
+    const sharePct = (share * 100).toFixed(1);
+    const source = `MAX of Target ${formatNumber(remaining$)}<sub>ROM</sub> × ${sharePct}% <sub>Single ${nextWeekday} share</sub>
+OR ${formatNumber(nextDayAvg)}<sub>${nextWeekday} avg</sub>`;
+
+        // === Expected Customers – average from most recent 3 same days ===
+     // === Expected Customers – average from most recent 3 same days ===
+        // === Expected Customers – last 3 same weekdays before Next Day ===
+    let recentOrders = [];
+
+    ordersData.forEach(row => {
+        const d = new Date(row[2]);
+        if (d >= nextDayDate) return; // only before Next Day
+
+        const dayName = d.toLocaleString('en-US', { weekday: 'long' });
+        if (dayName !== nextWeekday) return;
+
+        const orders = parseFloat(row[storeColumns[store]]) || 0;
+        if (orders > 0) {
+            recentOrders.push({ date: d, orders });
+        }
+    });
+
+    // Sort by date descending, take last 3
+    recentOrders.sort((a, b) => b.date - a.date);
+    recentOrders = recentOrders.slice(0, 3);
+
+    const expectedCustomers = recentOrders.length > 0 
+        ? recentOrders.reduce((a, b) => a + b.orders, 0) / recentOrders.length 
+        : 0;
+
+    return {
+        value: target,
+        source: source,
+        customers: expectedCustomers,
+        recentCount: recentOrders.length,
+        nextWeekday: nextWeekday,
+        nextDateStr: nextDayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    };
+}
+
+    // === calculateSalesData and getNextDayTargetedNetSales functions unchanged (already store-aware) ===
+    // ... [paste your existing calculateSalesData and getNextDayTargetedNetSales functions here] ...
+
+    // Sync dropdown display
+    document.addEventListener("change", e => {
+        if (e.target.id === "growth-target-today") {
+            document.getElementById("target-display").textContent = e.target.selectedOptions[0].text;
+        }
+    });
+</script>
+</body>
+</html>

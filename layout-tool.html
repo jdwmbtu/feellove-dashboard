@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Print Layout Tool</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #666;
+            padding: 20px;
+        }
+        .controls {
+            background: #333;
+            color: white;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        .controls button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background: #3498db;
+            color: white;
+        }
+        .controls button:hover { background: #2980b9; }
+
+        /* Page simulation - letter landscape */
+        .page {
+            width: 11in;
+            height: 8.5in;
+            background: white;
+            margin: 0 auto;
+            padding: 0.25in;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .page-inner {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            border: 1px dashed #ccc;
+        }
+
+        /* Draggable sections */
+        .section {
+            position: absolute;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: white;
+            cursor: move;
+            overflow: hidden;
+        }
+        .section:hover { box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.5); }
+        .section.selected { box-shadow: 0 0 0 3px #3498db; }
+
+        .section-header {
+            background: #2c3e50;
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .section-content {
+            padding: 10px;
+            font-size: 11px;
+            color: #666;
+            height: calc(100% - 32px);
+            overflow: hidden;
+        }
+
+        /* Resize handle */
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            cursor: se-resize;
+            background: linear-gradient(135deg, transparent 50%, #3498db 50%);
+        }
+
+        /* Section types */
+        .section.header-section { background: #f8f9fa; }
+        .section.targets-section { background: #2c3e50; color: white; }
+        .section.targets-section .section-content { color: rgba(255,255,255,0.8); }
+        .section.chart-section { background: #fff; }
+        .section.team-section { background: #fff; }
+        .section.notes-section { background: #f8f8f8; }
+        .section.signature-section { background: #fff; border-style: dashed; }
+
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #333;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <span>Drag sections to reposition. Drag corners to resize.</span>
+        <button onclick="resetLayout()">Reset Layout</button>
+        <button onclick="exportLayout()">Copy Layout Config</button>
+    </div>
+
+    <div class="page">
+        <div class="page-inner" id="page">
+            <!-- Header -->
+            <div class="section header-section" id="header" style="left: 0; top: 0; width: 100%; height: 50px;">
+                <div class="section-header">HEADER <span>Store Name + Date</span></div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Today's Targets -->
+            <div class="section targets-section" id="targets" style="left: 0; top: 60px; width: 40%; height: 150px;">
+                <div class="section-header">TODAY'S TARGETS</div>
+                <div class="section-content">
+                    <div style="text-align:center; padding-top: 20px;">
+                        <div style="font-size: 24px; font-weight: bold;">$3,280</div>
+                        <div>Sales Goal</div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- 7-Day Chart -->
+            <div class="section chart-section" id="chart" style="left: 42%; top: 60px; width: 58%; height: 150px;">
+                <div class="section-header">LAST 7 DAYS CHART</div>
+                <div class="section-content">
+                    <div style="display:flex; height:80%; align-items:flex-end; gap:8px; padding: 10px;">
+                        <div style="flex:1; background:#3498db; height:60%;"></div>
+                        <div style="flex:1; background:#3498db; height:75%;"></div>
+                        <div style="flex:1; background:#3498db; height:50%;"></div>
+                        <div style="flex:1; background:#c9a227; height:90%;"></div>
+                        <div style="flex:1; background:#3498db; height:70%;"></div>
+                        <div style="flex:1; background:#3498db; height:65%;"></div>
+                        <div style="flex:1; background:#3498db; height:55%;"></div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Progress Stats -->
+            <div class="section" id="progress" style="left: 0; top: 220px; width: 100%; height: 60px;">
+                <div class="section-header">PROGRESS STATS <span>93% | $137K MTD | $9.8K remaining | 3 days</span></div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Team Section -->
+            <div class="section team-section" id="team" style="left: 0; top: 290px; width: 65%; height: 350px;">
+                <div class="section-header">TODAY'S TEAM</div>
+                <div class="section-content">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <div style="border: 1px solid #ccc; padding: 8px; border-radius: 4px;">
+                            <strong>Ashley Wilson</strong><br>
+                            <small>6:00am - 8:30pm</small><br>
+                            <div style="background:#f5f5f5; padding:4px; margin-top:4px; min-height:30px;">Notes...</div>
+                        </div>
+                        <div style="border: 1px solid #ccc; padding: 8px; border-radius: 4px;">
+                            <strong>Brinley Dabb</strong><br>
+                            <small>7:30am - 12:30pm</small><br>
+                            <div style="background:#f5f5f5; padding:4px; margin-top:4px; min-height:30px;">Notes...</div>
+                        </div>
+                        <div style="border: 1px solid #ccc; padding: 8px; border-radius: 4px;">
+                            <strong>Hannah Smith</strong><br>
+                            <small>8:00am - 4:00pm</small><br>
+                            <div style="background:#f5f5f5; padding:4px; margin-top:4px; min-height:30px;">Notes...</div>
+                        </div>
+                        <div style="border: 1px solid #ccc; padding: 8px; border-radius: 4px;">
+                            <strong>Elydia Symens</strong><br>
+                            <small>8:30am - 3:15pm</small><br>
+                            <div style="background:#f5f5f5; padding:4px; margin-top:4px; min-height:30px;">Notes...</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Daily Notes -->
+            <div class="section notes-section" id="notes" style="left: 67%; top: 290px; width: 33%; height: 350px;">
+                <div class="section-header">DAILY NOTES</div>
+                <div class="section-content">
+                    <div style="background:#fff; border:1px solid #ccc; height:90%; padding:10px; border-radius:4px;">
+                        Notes, reminders, focus areas...
+                    </div>
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+
+            <!-- Signature -->
+            <div class="section signature-section" id="signature" style="left: 0; top: 650px; width: 100%; height: 50px;">
+                <div class="section-header">SIGNATURE LINE</div>
+                <div class="resize-handle"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="info">
+        <strong>Instructions:</strong><br>
+        1. Drag sections to move them<br>
+        2. Drag bottom-right corner to resize<br>
+        3. Arrange how you want the print layout<br>
+        4. Take a screenshot to show me!
+    </div>
+
+    <script>
+        let activeSection = null;
+        let isResizing = false;
+        let startX, startY, startWidth, startHeight, startLeft, startTop;
+
+        document.querySelectorAll('.section').forEach(section => {
+            section.addEventListener('mousedown', function(e) {
+                if (e.target.classList.contains('resize-handle')) {
+                    isResizing = true;
+                    activeSection = section;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startWidth = section.offsetWidth;
+                    startHeight = section.offsetHeight;
+                } else {
+                    isResizing = false;
+                    activeSection = section;
+                    startX = e.clientX;
+                    startY = e.clientY;
+                    startLeft = section.offsetLeft;
+                    startTop = section.offsetTop;
+                }
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('selected'));
+                section.classList.add('selected');
+                e.preventDefault();
+            });
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!activeSection) return;
+
+            if (isResizing) {
+                const newWidth = startWidth + (e.clientX - startX);
+                const newHeight = startHeight + (e.clientY - startY);
+                activeSection.style.width = Math.max(100, newWidth) + 'px';
+                activeSection.style.height = Math.max(40, newHeight) + 'px';
+            } else {
+                const newLeft = startLeft + (e.clientX - startX);
+                const newTop = startTop + (e.clientY - startY);
+                activeSection.style.left = Math.max(0, newLeft) + 'px';
+                activeSection.style.top = Math.max(0, newTop) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            activeSection = null;
+            isResizing = false;
+        });
+
+        function resetLayout() {
+            document.getElementById('header').style.cssText = 'left: 0; top: 0; width: 100%; height: 50px;';
+            document.getElementById('targets').style.cssText = 'left: 0; top: 60px; width: 40%; height: 150px;';
+            document.getElementById('chart').style.cssText = 'left: 42%; top: 60px; width: 58%; height: 150px;';
+            document.getElementById('progress').style.cssText = 'left: 0; top: 220px; width: 100%; height: 60px;';
+            document.getElementById('team').style.cssText = 'left: 0; top: 290px; width: 65%; height: 350px;';
+            document.getElementById('notes').style.cssText = 'left: 67%; top: 290px; width: 33%; height: 350px;';
+            document.getElementById('signature').style.cssText = 'left: 0; top: 650px; width: 100%; height: 50px;';
+        }
+
+        function exportLayout() {
+            const layout = {};
+            document.querySelectorAll('.section').forEach(s => {
+                layout[s.id] = {
+                    left: s.style.left,
+                    top: s.style.top,
+                    width: s.style.width,
+                    height: s.style.height
+                };
+            });
+            const text = JSON.stringify(layout, null, 2);
+            navigator.clipboard.writeText(text);
+            alert('Layout copied to clipboard!');
+        }
+    </script>
+</body>
+</html>

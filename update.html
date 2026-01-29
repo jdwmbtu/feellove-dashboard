@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Data Update</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #back-btn { background: #007bff; color: white; padding: 10px 15px; border: none; cursor: pointer; margin-bottom: 10px; }
+        #back-btn:hover { background: #0056b3; }
+        #month-selector { margin-bottom: 10px; padding: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        input { width: 80px; text-align: right; }
+        button { padding: 5px 10px; cursor: pointer; }
+        .edit-btn { background: #28a745; color: white; border: none; }
+        .save-btn { background: #ffc107; color: black; border: none; }
+    </style>
+</head>
+<body>
+    <button id="back-btn" onclick="window.location.href='index.html'">Back to Main Dashboard</button>
+    <br>
+    <label for="month-selector">Select Month: </label>
+    <select id="month-selector"></select>
+    <button onclick="loadMonthData()">Load Month</button>
+    <br>
+    <table id="data-table">
+        <thead>
+            <tr>
+                <th>Action</th>
+                <th>Date</th>
+                <th>CAFE Net $</th>
+                <th>CAFE Orders</th>
+                <th>FEELLOVE Net $</th>
+                <th>FEELLOVE Orders</th>
+                <th>SNOW Net $</th>
+                <th>SNOW Orders</th>
+                <th>ZION Net $</th>
+                <th>ZION Orders</th>
+            </tr>
+        </thead>
+        <tbody id="data-tbody"></tbody>
+    </table>
+
+    <!-- Paste your shared JS constants and functions here (from main script) -->
+    <script>
+        const API_KEY = 'AIzaSyAbqqoWEYouY2nlLojZIXR1MFo7C0s-gQY';
+        const SPREADSHEET_ID = '1whPL4X-I815XVKbeFDxEHbhHbddUtb1XwsSE7MUaWYo';
+        const DISCOVERY_DOCS = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
+        const CURRENT_DATE = new Date();
+        const storeColumns = { CAFE: 3, FEELLOVE: 4, SNOW: 5, ZION: 6 }; // 0-indexed for values.get
+
+        let netsalesData = null;
+        let ordersData = null;
+        let currentMonth = '';
+
+        // Paste initClient and loadSheetsData functions here (from main script, but simplify loadSheetsData to fetch full ranges if needed)
+        function initClient() {
+            gapi.load('client', () => {
+                gapi.client.init({ apiKey: API_KEY, discoveryDocs: DISCOVERY_DOCS })
+                    .then(() => {
+                        console.log('API initialized');
+                        populateMonthDropdown(); // We'll define this next
+                    })
+                    .catch(err => console.error('Init error:', err));
+            });
+        }
+
+        // Placeholder for loadSheetsData (full version in Step 2)
+        async function loadSheetsData() {
+            // TODO: Implement in Step 2
+            console.log('Data loading placeholder');
+        }
+
+        // Placeholder for populateMonthDropdown
+        function populateMonthDropdown() {
+            const sel = document.getElementById('month-selector');
+            sel.innerHTML = '<option value="">Select Month</option>';
+            const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            months.forEach(m => sel.innerHTML += `<option value="${m}">${m}</option>`);
+            // Auto-select current month
+            const currentMonth = CURRENT_DATE.toLocaleString('en-US', { month: 'long' });
+            sel.value = currentMonth;
+        }
+
+        // Placeholder for loadMonthData
+        function loadMonthData() {
+            // TODO: Implement in Step 2
+            console.log('Loading month data placeholder');
+        }
+
+        // Auto-init on load
+        window.onload = initClient;
+    </script>
+</body>
+</html>

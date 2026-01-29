@@ -1,0 +1,362 @@
+/**
+ * FeelLove Print Styles
+ * Compact single-page layout for letter landscape
+ */
+
+@media print {
+    @page {
+        size: letter landscape;
+        margin: 0.2in;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html, body {
+        background: white !important;
+        font-size: 9pt;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Hide elements not needed in print */
+    .no-print,
+    .store-selector,
+    .print-button,
+    .finance-section,
+    .finance-toggle,
+    #controls-container,
+    .note-status,
+    .goal-control,
+    #progress-pace-marker,
+    .signature-section {
+        display: none !important;
+    }
+
+    /* Header - compact single line */
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-bottom: 8px;
+    }
+
+    .dashboard-header h1 {
+        font-size: 16pt;
+        margin: 0;
+    }
+
+    .dashboard-header .date {
+        font-size: 11pt;
+        color: #333;
+    }
+
+    .date-nav {
+        display: none !important;
+    }
+
+    #print-date {
+        display: block !important;
+    }
+
+    /* Progress section - compact single row */
+    .progress-section {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        display: flex !important;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Hide the big percentage/MTD display and progress bar */
+    .progress-section > div:first-child,
+    .progress-section > div:nth-child(2),
+    .progress-bar-container {
+        display: none !important;
+    }
+
+    /* Daily targets banner - compact */
+    .progress-section > div[style*="background: linear-gradient"] {
+        border-radius: 4px !important;
+        padding: 4px 10px !important;
+        margin-bottom: 0 !important;
+        flex: 0 0 auto;
+    }
+
+    .daily-targets {
+        gap: 15px !important;
+    }
+
+    .daily-targets > div > div:first-child {
+        font-size: 11pt !important;
+    }
+
+    .daily-targets > div > div:last-child {
+        font-size: 6pt !important;
+    }
+
+    /* Target cards row - compact */
+    .target-cards {
+        display: flex !important;
+        gap: 4px !important;
+        margin-bottom: 0 !important;
+        flex: 1;
+    }
+
+    .target-card {
+        padding: 3px 6px !important;
+        flex: 1;
+    }
+
+    .target-card > div:first-child {
+        font-size: 8pt !important;
+    }
+
+    .target-card > div:last-child {
+        font-size: 5pt !important;
+    }
+
+    /* Motivational message - minimal */
+    .motivational-message {
+        font-size: 7pt;
+        padding: 2px 6px !important;
+        margin: 0 !important;
+        border-width: 1px !important;
+        border-radius: 3px;
+    }
+
+    /* 7-Day Chart section - hide canvas, show print version */
+    .chart-section {
+        display: none !important;
+    }
+
+    /* Show print-friendly chart instead */
+    .print-chart {
+        display: block !important;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 8px 12px;
+        margin: 0 auto 6px auto;
+        max-width: 800px;
+    }
+
+    .print-chart-title {
+        font-size: 9pt;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .print-chart-bars {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-around;
+        height: 100px;
+        gap: 8px;
+        border-bottom: 1px solid #ccc;
+        padding-bottom: 4px;
+    }
+
+    .print-chart-bar-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+    }
+
+    .print-chart-bar {
+        width: 100%;
+        max-width: 60px;
+        background: #3498db;
+        border-radius: 3px 3px 0 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 2px;
+        min-height: 4px;
+    }
+
+    .print-chart-bar.highlight {
+        background: #c9a227;
+    }
+
+    .print-chart-bar-value {
+        font-size: 7pt;
+        color: white;
+        font-weight: bold;
+    }
+
+    .print-chart-bar-label {
+        font-size: 7pt;
+        margin-top: 4px;
+        text-align: center;
+    }
+
+    .print-chart-order-label {
+        font-size: 6pt;
+        color: #e74c3c;
+        font-weight: bold;
+        margin-bottom: 2px;
+    }
+
+    .print-chart-dot {
+        width: 8px;
+        height: 8px;
+        background: #e74c3c;
+        border-radius: 50%;
+        position: relative;
+        top: -4px;
+    }
+
+    #seven-day-summary {
+        display: none !important;
+    }
+
+    /* Team and Day Notes stacked */
+    .print-two-column {
+        display: block !important;
+    }
+
+    .print-two-column .team-section {
+        margin-bottom: 4px;
+    }
+
+    .print-two-column .day-notes-section {
+        margin-bottom: 4px;
+    }
+
+    /* Team section - compact */
+    .team-section {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 5px 8px;
+        margin-bottom: 4px;
+    }
+
+    .section-title {
+        font-size: 9pt;
+        font-weight: bold;
+        border-bottom: 1px solid #333;
+        padding-bottom: 2px;
+        margin-bottom: 4px;
+        margin-top: 0;
+    }
+
+    .section-title::before {
+        display: none;
+    }
+
+    /* Staff list - single column */
+    .staff-list {
+        display: flex !important;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    /* Staff card - horizontal row: Name 15% | Gantt 35% | Notes 50% */
+    .staff-card {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 6px;
+        background: #f9f9f9 !important;
+        border: 1px solid #999;
+        border-left: 3px solid #333;
+        border-radius: 3px;
+        padding: 2px 6px;
+        min-height: 24px;
+    }
+
+    .staff-header {
+        display: contents !important;
+    }
+
+    .staff-name {
+        font-size: 8pt;
+        font-weight: bold;
+        width: 15%;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Gantt bars - 35% */
+    .shift-gantt-bar {
+        width: 35% !important;
+        flex-shrink: 0;
+        height: 18px !important;
+        align-self: center;
+    }
+
+    .shift-gantt-bar > div {
+        font-size: 6pt !important;
+    }
+
+    /* Staff notes - 50% */
+    .staff-note-input {
+        width: 50% !important;
+        flex-shrink: 0;
+        border: 1px solid #ccc !important;
+        background: white !important;
+        font-size: 7pt;
+        min-height: 20px !important;
+        height: 20px !important;
+        padding: 2px 5px !important;
+        resize: none;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    /* Staff totals - compact */
+    .staff-totals {
+        display: flex !important;
+        background: #e8e8e8 !important;
+        border: 1px solid #999;
+        padding: 2px 6px;
+        border-radius: 2px;
+        margin-top: 3px;
+        font-size: 8pt;
+    }
+
+    /* Day notes section - compact */
+    .day-notes-section {
+        background: white !important;
+        box-shadow: none !important;
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 5px 8px;
+        margin-bottom: 4px;
+    }
+
+    .day-note-input {
+        border: 1px solid #ccc !important;
+        background: #f9f9f9 !important;
+        font-size: 8pt;
+        min-height: 60px !important;
+        height: 60px !important;
+        padding: 4px !important;
+    }
+
+    /* Hide schedule date display */
+    #schedule-date-display {
+        display: none;
+    }
+
+    /* Links */
+    a[href]::after {
+        content: none;
+    }
+}

@@ -16,6 +16,13 @@ let currentMetricsSubView = 'sales';  // Default sub-view
 let totalStaffingHours = 0;   // will be set by loadTodaySchedule
 let nextDayPredictedSales = 0;   // will hold the first day sales from 7-day table
 
+// Helper: format date as YYYY-MM-DD in local timezone (avoids UTC shift)
+function formatDateLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
 
 /* -------------------------------------------------------------
    INITIAL LOAD
@@ -101,6 +108,8 @@ function getLastDataDate(store, month) {
     const idx = storeColumns[store];
     let last = null;
 
+    if (!netsalesData) return null;
+
     netsalesData.forEach(row => {
         const d = new Date(row[2]);
         if (isNaN(d)) return;
@@ -122,6 +131,8 @@ function getLastDataDate(store, month) {
 function populateMonthDropdown() {
     const monthOrder = ['January','February','March','April','May','June','July','August','September','October','November','December'];
     const seen = new Set();
+
+    if (!netsalesData) return;
 
     // Collect unique months from data
     netsalesData.forEach(r => {
@@ -236,6 +247,11 @@ function calculateAverages(store, month) {
     const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
     const s24 = {}, s25 = {}, o24 = {}, o25 = {};
     days.forEach(d => { s24[d]=[]; s25[d]=[]; o24[d]=[]; o25[d]=[]; });
+
+    // Guard against null data (not yet loaded)
+    if (!netsalesData || !ordersData) {
+        return { s24, s25, o24, o25 };
+    }
 
     for (let i = 0; i < netsalesData.length && i < ordersData.length; i++) {
         const sRow = netsalesData[i];
@@ -706,6 +722,14 @@ function calculateSalesData(store, month) {
     let lastCurrentYear = null;
     let mtdCurrentYear = 0;
     let isMonthStarted = false;
+
+    // Guard against null data
+    if (!netsalesData) {
+        return {
+            mtdCurrentYear: 0, mtdLastYear: 0, mtdTarget: 0,
+            romLastYear: 0, romTarget: 0, daysElapsed: 0, daysRemaining: totalDays
+        };
+    }
 
     netsalesData.forEach(row => {
         const d = new Date(row[2]);
@@ -2015,31 +2039,102 @@ const storeHours = {
     ZION:     { open: "06:00", close: "17:00" }    // 6am – 5pm daily
 };
 
-function formatMT(timeStr) {
-    let [h, m] = timeStr.split(":").map(Number);
-    h = (h - 7 + 24) % 24;
-    return `${h}:${m.toString().padStart(2,"0")}`;
+// Parse time from various formats (Google Sheets can return different formats)
+// Google Sheets stores times in UTC, so we subtract 7 hours for Mountain Time
+const MT_OFFSET = -7; // Mountain Time offset from UTC
+
+function parseTimeStr(timeStr, applyTimezoneOffset = true) {
+    if (!timeStr) return { h: 0, m: 0 };
+
+    const str = String(timeStr).trim().toUpperCase();
+    let h = 0, m = 0;
+
+    // Handle decimal (Google Sheets serial time: 0.5 = 12:00 PM UTC)
+    if (!isNaN(parseFloat(str)) && str.indexOf(':') === -1) {
+        const decimal = parseFloat(str);
+        if (decimal >= 0 && decimal < 1) {
+            const totalMinutes = Math.round(decimal * 24 * 60);
+            h = Math.floor(totalMinutes / 60);
+            m = totalMinutes % 60;
+        }
+    }
+    // Handle "HH:MM" or "H:MM"
+    else if (str.indexOf(':') !== -1) {
+        let [hPart, rest] = str.split(':');
+        h = parseInt(hPart) || 0;
+        m = parseInt(rest) || 0;
+
+        // Handle AM/PM suffix
+        if (rest && rest.includes('PM') && h < 12) h += 12;
+        if (rest && rest.includes('AM') && h === 12) h = 0;
+    }
+    // Handle "1 PM" or "1PM" format
+    else {
+        const ampmMatch = str.match(/^(\d{1,2})\s*(AM|PM)$/);
+        if (ampmMatch) {
+            h = parseInt(ampmMatch[1]);
+            if (ampmMatch[2] === 'PM' && h < 12) h += 12;
+            if (ampmMatch[2] === 'AM' && h === 12) h = 0;
+        } else {
+            // Fallback: try to parse as number (hours)
+            const num = parseInt(str);
+            if (!isNaN(num)) h = num;
+        }
+    }
+
+    // Apply Mountain Time offset (UTC to MT)
+    if (applyTimezoneOffset) {
+        h = (h + MT_OFFSET + 24) % 24;
+    }
+
+    return { h, m };
 }
 
-async function loadTodaySchedule(store) {
+function formatMT(timeStr) {
+    // Format time as 12-hour with am/pm (always show minutes)
+    const { h, m } = parseTimeStr(timeStr);
+    const ampm = h >= 12 ? 'pm' : 'am';
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${m.toString().padStart(2,"0")}${ampm}`;
+}
+
+function getTimeAs24h(timeStr) {
+    const { h, m } = parseTimeStr(timeStr);
+    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+}
+
+// Wrapper function for loading schedule with specific date
+async function loadScheduleForDate(store, date) {
+    return loadTodaySchedule(store, date);
+}
+
+async function loadTodaySchedule(store, overrideDate = null) {
     const storeKey = store || 'CAFE';
 
-    // === Determine the date for the schedule (day after last sales) ===
-    const lastSalesDate = getLastDataDate(storeKey, '');   // your existing function
-    let scheduleDate = new Date();
-    if (lastSalesDate) {
-        scheduleDate = new Date(lastSalesDate);
-        scheduleDate.setDate(scheduleDate.getDate() + 1);  // day after last sales
+    // === Determine the date for the schedule ===
+    let scheduleDate;
+    if (overrideDate) {
+        scheduleDate = new Date(overrideDate);
     } else {
-        scheduleDate.setDate(scheduleDate.getDate() + 1);  // tomorrow if no data
+        // Default: day after last sales
+        const lastSalesDate = getLastDataDate(storeKey, '');
+        scheduleDate = new Date();
+        if (lastSalesDate) {
+            scheduleDate = new Date(lastSalesDate);
+            scheduleDate.setDate(scheduleDate.getDate() + 1);
+        } else {
+            scheduleDate.setDate(scheduleDate.getDate() + 1);
+        }
     }
 
     // === today for weekend check (real today in MT) ===
     const today = new Date();   // ← this line was missing – fixes weekend detection
 
-    const todayShort = scheduleDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    document.getElementById("schedule-date").textContent = 
-        " – " + scheduleDate.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const todayShort = scheduleDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Denver" });
+    const scheduleDateEl = document.getElementById("schedule-date");
+    if (scheduleDateEl) {
+        scheduleDateEl.textContent = " – " + scheduleDate.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: "America/Denver" });
+    }
 
     const tab = scheduleTabs[storeKey] || "Schedule-SNOW";
 
@@ -2070,10 +2165,13 @@ if (isWeekend) { openHour = 7; closeHour = 16; hoursText = "Open 7am – 4pm (We
             const row = rows[i];
             if (!row || row.length < 5) continue;
             if (row[0] === todayShort && row[2]) {
+                // Normalize times to 24-hour format
+                const startTime = getTimeAs24h(row[3]);
+                const endTime = getTimeAs24h(row[4]);
                 shifts.push({
                     employee: (row[2] + "").replace(/ \(Shift a.*\)/, '').trim(),
-                    start: row[3],
-                    end: row[4]
+                    start: startTime,
+                    end: endTime
                 });
             }
         }
@@ -2100,11 +2198,18 @@ if (isWeekend) { openHour = 7; closeHour = 16; hoursText = "Open 7am – 4pm (We
             shifts.forEach(shift => {
                 const [sh, sm] = shift.start.split(":").map(Number);
                 const [eh, em] = shift.end.split(":").map(Number);
-                const startDecimal = (sh - 7 + sm/60 + 24) % 24;
-                const endDecimal   = (eh - 7 + em/60 + 24) % 24;
-                let left  = ((startDecimal - visibleStart + 24) % 24) / visibleHours * 100;
-                let width = ((endDecimal - startDecimal + 24) % 24) / visibleHours * 100;
-                if (left < 0) { left = 0; width = 100 + width; }
+                // Times are already in Mountain Time, no offset needed
+                const startDecimal = sh + sm/60;
+                let endDecimal = eh + em/60;
+                // Handle overnight shifts
+                if (endDecimal < startDecimal) endDecimal += 24;
+
+                let left = (startDecimal - visibleStart) / visibleHours * 100;
+                let width = (endDecimal - startDecimal) / visibleHours * 100;
+
+                // Clamp to visible range
+                if (left < 0) { width += left; left = 0; }
+                if (left + width > 100) { width = 100 - left; }
 
                 html += `<div class="employee-row">
                     <div class="employee-name">${shift.employee}</div>
@@ -2134,86 +2239,1936 @@ if (isWeekend) { openHour = 7; closeHour = 16; hoursText = "Open 7am – 4pm (We
 
 
 
-        document.getElementById("gantt-chart").innerHTML = html;
-        document.getElementById("schedule-container").style.display = "block";
+        // Legacy gantt kept hidden - using inline gantt bars in staff cards instead
+
+        // Render new manager UI team cards
+        await renderTeamCards(storeKey, scheduleDate, shifts);
+
     } catch (err) {
         console.error("Schedule error:", err);
-        document.getElementById("gantt-chart").innerHTML = "<p style='color:red;padding:20px;'>Failed to load schedule</p>";
-        document.getElementById("schedule-container").style.display = "block";
+
+        // Show error in team cards
+        const teamList = document.getElementById('team-list');
+        if (teamList) {
+            teamList.innerHTML = '<div class="no-schedule"><p style="color: #e74c3c;">Error loading schedule</p></div>';
+        }
     }
 }
 
-// Collapsible
-document.getElementById("schedule-h2").addEventListener("click", () => {
-    const c = document.getElementById("schedule-container");
-    c.style.display = c.style.display === "block" ? "none" : "block";
-});
-
-// Reload schedule when store changes
-document.getElementById("store-filter").addEventListener("change", () => {
-    loadTodaySchedule(document.getElementById("store-filter").value);
-});
-
-function printDashboard() {
-    const printWin = window.open('', '_blank', 'width=1200,height=800');
-
-    const storeName = document.getElementById('store-filter').options[document.getElementById('store-filter').selectedIndex].text;
-    const scheduleDate = document.getElementById('schedule-date').textContent;
-
-    const printHTML = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>${storeName} – ${scheduleDate}</title>
-            <style>
-                @page { size: landscape; margin: 0.3in; }
-                body { font-family: Arial, sans-serif; padding: 20px; background: white; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                h1 { text-align: center; color: #2c3e50; font-size: 28px; margin-bottom: 20px; }
-                h2 { color: #34495e; font-size: 22px; margin: 25px 0 10px; }
-                .row { display: flex; gap: 30px; margin-bottom: 30px; page-break-inside: avoid; }
-                .col { flex: 1; }
-                table { width: 100%; border-collapse: collapse; font-size: 14px; }
-                th, td { border: 1px solid #333; padding: 8px; text-align: center; }
-                th { background: #e0e0e0; }
-                textarea { width: 100%; height: 400px; padding: 15px; font-size: 16px; border: 2px solid #333; border-radius: 8px; background: white; }
-                .gantt-header { display: grid; grid-template-columns: 150px repeat(13, 1fr); background: #34495e; color: white; }
-                .employee-row { display: grid; grid-template-columns: 150px 1fr; border-bottom: 1px solid #ddd; }
-                .timeline { position: relative; height: 50px; background: #f8f9f9; }
-                .shift-bar { position: absolute; top: 8px; height: 34px; background: #3498db; color: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-            <h1>${storeName} – ${scheduleDate}</h1>
-            <div class="row">
-                <div class="col">
-                    ${document.querySelector('#schedule-container').innerHTML}
-                </div>
-                <div class="col">
-                    ${document.querySelector('#summary-table').outerHTML}
-                </div>
-            </div>
-            <h2>Notes</h2>
-            <textarea readonly>${document.getElementById('staff-notes-text')?.value || ''}</textarea>
-        </body>
-        </html>
-    `;
-
-    printWin.document.body.innerHTML = printHTML;
-    printWin.focus();
-    setTimeout(() => {
-        printWin.print();
-    }, 600);
+// Collapsible (only if element exists - legacy support)
+const scheduleH2 = document.getElementById("schedule-h2");
+if (scheduleH2) {
+    scheduleH2.addEventListener("click", () => {
+        const c = document.getElementById("schedule-container");
+        if (c) c.style.display = c.style.display === "block" ? "none" : "block";
+    });
 }
+
+// Reload schedule when store changes - uses selectedDate from index.html
+const storeFilter = document.getElementById("store-filter");
+if (storeFilter) {
+    storeFilter.addEventListener("change", () => {
+        const store = document.getElementById("store-filter").value;
+        // Use selectedDate if available (from day navigation), otherwise use default
+        if (typeof selectedDate !== 'undefined') {
+            loadScheduleForDate(store, selectedDate);
+            const dateKey = formatDateLocal(selectedDate);
+            loadDayNote(store, dateKey);
+        } else {
+            loadTodaySchedule(store);
+        }
+    });
+}
+
+// Old printDashboard removed - using updated version below
 
 
 
 const originalUpdateTables = updateTables;
 updateTables = async function () {
     const store = document.getElementById("store-filter").value || 'CAFE';
-    
+
     // Run schedule and wait for it to finish
     await loadTodaySchedule(store);
-    
+
     // Now run everything else — totalStaffingHours is guaranteed to be set
     originalUpdateTables.apply(this, arguments);
+
+    // Update new manager UI components
+    updateProgressRing(store);
+    updateQuickStats(store);
 };
+
+
+/* -------------------------------------------------------------
+   MANAGER UI - Monthly Goal Management
+   ------------------------------------------------------------- */
+function getGoalSettingsKey(store, month) {
+    return `feellove_goal_settings_${store}_${month}`;
+}
+
+function getGoalSettings(store, month) {
+    const key = getGoalSettingsKey(store, month);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+}
+
+function saveGoalSettings(store, month, settings) {
+    const key = getGoalSettingsKey(store, month);
+    localStorage.setItem(key, JSON.stringify(settings));
+}
+
+function updateGoalFromSelector() {
+    const store = document.getElementById('store-filter')?.value || 'CAFE';
+    const month = document.getElementById('month-filter')?.value || '';
+    const selector = document.getElementById('goal-selector');
+    const customInput = document.getElementById('custom-goal-input');
+
+    if (!selector) return;
+
+    const value = selector.value;
+
+    if (value === 'custom') {
+        customInput.style.display = 'inline-block';
+        customInput.focus();
+    } else {
+        customInput.style.display = 'none';
+        saveGoalSettings(store, month, { type: value });
+        updateProgressRing(store);
+    }
+}
+
+function saveCustomGoal(value) {
+    const store = document.getElementById('store-filter')?.value || 'CAFE';
+    const month = document.getElementById('month-filter')?.value || '';
+
+    if (value && parseFloat(value) > 0) {
+        saveGoalSettings(store, month, { type: 'custom', value: parseFloat(value) });
+    }
+
+    updateProgressRing(store);
+}
+
+function calculateGoalTarget(store, month) {
+    const data = calculateSalesData(store, month);
+    const lastYearTotal = (data.mtdLastYear || 0) + (data.romLastYear || 0);
+
+    // Get saved settings
+    const settings = getGoalSettings(store, month);
+
+    if (!settings) {
+        // Default: +20%
+        return Math.round(lastYearTotal * 1.20);
+    }
+
+    if (settings.type === 'custom' && settings.value) {
+        return settings.value;
+    }
+
+    if (settings.type.startsWith('pct_')) {
+        const pct = parseInt(settings.type.split('_')[1]) / 100;
+        return Math.round(lastYearTotal * (1 + pct));
+    }
+
+    if (settings.type.startsWith('add_')) {
+        const addAmount = parseInt(settings.type.split('_')[1]);
+        return Math.round(lastYearTotal + addAmount);
+    }
+
+    // Fallback
+    return Math.round(lastYearTotal * 1.20);
+}
+
+function loadGoalSelector(store, month) {
+    const selector = document.getElementById('goal-selector');
+    const customInput = document.getElementById('custom-goal-input');
+    if (!selector) return;
+
+    const settings = getGoalSettings(store, month);
+
+    if (settings) {
+        if (settings.type === 'custom') {
+            selector.value = 'custom';
+            customInput.style.display = 'inline-block';
+            customInput.value = settings.value || '';
+        } else {
+            selector.value = settings.type;
+            customInput.style.display = 'none';
+        }
+    } else {
+        selector.value = 'pct_20'; // Default
+        customInput.style.display = 'none';
+    }
+}
+
+/* -------------------------------------------------------------
+   MANAGER UI - Progress Ring & Bar
+   ------------------------------------------------------------- */
+function updateProgressRing(store) {
+    // Use the selected date if available, otherwise use today
+    const viewDate = (typeof selectedDate !== 'undefined' && selectedDate) ? selectedDate : new Date();
+
+    // Delegate to the date-aware function for consistent calculations
+    if (typeof updateProgressRingForDate === 'function') {
+        updateProgressRingForDate(store, viewDate);
+        return;
+    }
+
+    // Fallback to original logic if date function not available
+    const month = document.getElementById('month-filter')?.value || '';
+    const data = calculateSalesData(store, month);
+
+    // Current MTD sales
+    const current = data.mtdCurrentYear || 0;
+
+    // Get target from goal selector
+    const target = calculateGoalTarget(store, month) || 1;
+
+    // Update goal selector display
+    loadGoalSelector(store, month);
+
+    // Calculate days in month and days elapsed
+    const monthIndex = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(month);
+    const totalDaysInMonth = new Date(CURRENT_YEAR, monthIndex + 1, 0).getDate();
+    const today = new Date();
+    const daysElapsed = data.daysElapsed || Math.min(today.getDate(), totalDaysInMonth);
+    const daysRemaining = Math.max(0, totalDaysInMonth - daysElapsed);
+
+    // Calculate pace
+    const pacePercentage = (daysElapsed / totalDaysInMonth) * 100;
+    const expectedAtPace = (target * daysElapsed) / totalDaysInMonth;
+    const remaining = Math.max(0, target - current);
+    const dailyTarget = daysRemaining > 0 ? remaining / daysRemaining : 0;
+    const projectedTotal = daysElapsed > 0 ? (current / daysElapsed) * totalDaysInMonth : 0;
+
+    // Pace status
+    const aheadOfPace = current >= expectedAtPace;
+    const paceGap = current - expectedAtPace;
+
+    const percentage = Math.min(Math.round((current / target) * 100), 150);
+    const displayPct = Math.min(percentage, 100);
+
+    // Update main displays
+    const pctEl = document.getElementById('progress-percentage');
+    if (pctEl) {
+        pctEl.textContent = `${percentage}%`;
+        pctEl.style.color = percentage >= 100 ? '#c9a227' : (aheadOfPace ? '#27ae60' : '#e74c3c');
+    }
+
+    const currentEl = document.getElementById('progress-current');
+    if (currentEl) {
+        currentEl.textContent = `$${current.toLocaleString()}`;
+        currentEl.style.color = aheadOfPace ? '#27ae60' : '#e74c3c';
+    }
+
+    const goalEl = document.getElementById('progress-goal');
+    if (goalEl) goalEl.textContent = `$${target.toLocaleString()}`;
+
+    // Update progress bar
+    const barFill = document.getElementById('progress-bar-fill');
+    const barTarget = document.getElementById('progress-bar-target');
+    const paceMarker = document.getElementById('progress-pace-marker');
+    const paceLabel = document.getElementById('progress-pace-label');
+
+    if (barFill) {
+        barFill.style.width = `${displayPct}%`;
+        if (percentage >= 100) {
+            barFill.style.background = 'linear-gradient(90deg, #c9a227, #e8d48a)';
+        } else if (aheadOfPace) {
+            barFill.style.background = 'linear-gradient(90deg, #27ae60, #2ecc71)';
+        } else {
+            barFill.style.background = 'linear-gradient(90deg, #e74c3c, #c0392b)';
+        }
+    }
+    if (barTarget) barTarget.textContent = `$${target.toLocaleString()}`;
+    if (paceMarker) paceMarker.style.left = `${Math.min(pacePercentage, 100)}%`;
+    if (paceLabel) paceLabel.textContent = `Projected: $${Math.round(projectedTotal).toLocaleString()}`;
+
+    // Update target cards
+    const remainingEl = document.getElementById('target-remaining');
+    if (remainingEl) {
+        if (remaining > 0) {
+            remainingEl.textContent = `$${remaining.toLocaleString()}`;
+            remainingEl.parentElement.style.borderColor = '#e74c3c';
+        } else {
+            remainingEl.textContent = `+$${Math.abs(target - current).toLocaleString()}`;
+            remainingEl.parentElement.style.borderColor = '#27ae60';
+            remainingEl.style.color = '#27ae60';
+        }
+    }
+
+    const dailyEl = document.getElementById('target-daily');
+    if (dailyEl) dailyEl.textContent = `$${Math.round(dailyTarget).toLocaleString()}`;
+
+    const daysLeftEl = document.getElementById('target-days-left');
+    if (daysLeftEl) daysLeftEl.textContent = daysRemaining;
+
+    // Pace status card
+    const paceStatusEl = document.getElementById('pace-status');
+    const paceStatusDetailEl = document.getElementById('pace-status-detail');
+    const paceStatusCard = document.getElementById('pace-status-card');
+
+    if (paceStatusEl && paceStatusDetailEl && paceStatusCard) {
+        if (percentage >= 100) {
+            paceStatusEl.textContent = 'Goal Hit!';
+            paceStatusEl.style.color = '#c9a227';
+            paceStatusCard.style.borderColor = '#c9a227';
+            paceStatusDetailEl.textContent = 'Congratulations!';
+        } else if (aheadOfPace) {
+            paceStatusEl.textContent = 'Ahead';
+            paceStatusEl.style.color = '#27ae60';
+            paceStatusCard.style.borderColor = '#27ae60';
+            paceStatusDetailEl.textContent = `+$${Math.abs(Math.round(paceGap)).toLocaleString()} vs pace`;
+        } else {
+            paceStatusEl.textContent = 'Behind';
+            paceStatusEl.style.color = '#e74c3c';
+            paceStatusCard.style.borderColor = '#e74c3c';
+            paceStatusDetailEl.textContent = `-$${Math.abs(Math.round(paceGap)).toLocaleString()} vs pace`;
+        }
+    }
+
+    // Print version
+    const amountPrintEl = document.getElementById('progress-amounts-print');
+    if (amountPrintEl) amountPrintEl.textContent = `$${current.toLocaleString()} / $${target.toLocaleString()}`;
+
+    // Motivational message - pass average daily for reality check
+    const avgDaily = daysElapsed > 0 ? current / daysElapsed : 0;
+    const msgEl = document.getElementById('motivational-message');
+    if (msgEl) {
+        const msg = getMotivationalMessage(percentage, remaining, dailyTarget, aheadOfPace, daysRemaining, avgDaily);
+        if (msg) {
+            msgEl.textContent = msg;
+            msgEl.style.display = 'block';
+            msgEl.style.borderColor = aheadOfPace ? '#27ae60' : '#e74c3c';
+            msgEl.style.background = aheadOfPace ? '#f0fff4' : '#fff5f5';
+        } else {
+            msgEl.style.display = 'none';
+        }
+    }
+
+    // Forecast section
+    const forecastProjectedEl = document.getElementById('forecast-projected');
+    const forecastVsGoalEl = document.getElementById('forecast-vs-goal');
+    if (forecastProjectedEl) {
+        forecastProjectedEl.textContent = `$${Math.round(projectedTotal).toLocaleString()}`;
+    }
+    if (forecastVsGoalEl) {
+        const forecastGap = projectedTotal - target;
+        if (forecastGap >= 0) {
+            forecastVsGoalEl.textContent = `+$${Math.round(forecastGap).toLocaleString()} over goal`;
+            forecastVsGoalEl.style.color = '#27ae60';
+        } else {
+            forecastVsGoalEl.textContent = `-$${Math.abs(Math.round(forecastGap)).toLocaleString()} under goal`;
+            forecastVsGoalEl.style.color = '#e74c3c';
+        }
+    }
+
+    // Last year comparison
+    const lastYearTotal = (data.mtdLastYear || 0) + (data.romLastYear || 0);
+    const lastYearMtdEl = document.getElementById('last-year-mtd');
+    const yoyChangeEl = document.getElementById('yoy-change');
+    if (lastYearMtdEl) {
+        lastYearMtdEl.textContent = `$${Math.round(data.mtdLastYear || 0).toLocaleString()}`;
+    }
+    if (yoyChangeEl) {
+        const yoyDiff = current - (data.mtdLastYear || 0);
+        const yoyPct = data.mtdLastYear > 0 ? ((current / data.mtdLastYear) - 1) * 100 : 0;
+        if (yoyDiff >= 0) {
+            yoyChangeEl.textContent = `+${yoyPct.toFixed(1)}% YoY`;
+            yoyChangeEl.style.color = '#27ae60';
+        } else {
+            yoyChangeEl.textContent = `${yoyPct.toFixed(1)}% YoY`;
+            yoyChangeEl.style.color = '#e74c3c';
+        }
+    }
+
+    // Calculate and display daily targets
+    updateDailyTargets(store, month, dailyTarget, daysRemaining);
+
+    // Update 7-day chart
+    updateSevenDayChart(store);
+}
+
+let sevenDayChartInstance = null;
+
+function updateSevenDayChart(store) {
+    const col = storeColumns[store];
+    const ctx = document.getElementById('seven-day-chart');
+    if (!ctx || !netsalesData) return;
+
+    // Get last 7 days of data - sales and orders
+    const sortedData = [];
+
+    // Collect all sales data for this store
+    netsalesData.forEach(row => {
+        const dt = new Date(row[2]);
+        if (isNaN(dt)) return;
+        const sales = parseFloat((row[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+        if (sales > 0) {
+            sortedData.push({ date: dt, dateStr: dt.toLocaleDateString('en-US'), sales: sales, orders: 0 });
+        }
+    });
+
+    // Add orders data
+    if (ordersData) {
+        ordersData.forEach(row => {
+            const dt = new Date(row[2]);
+            if (isNaN(dt)) return;
+            const orders = parseInt(row[col]) || 0;
+            const dateStr = dt.toLocaleDateString('en-US');
+            const existing = sortedData.find(d => d.dateStr === dateStr);
+            if (existing) {
+                existing.orders = orders;
+            }
+        });
+    }
+
+    // Sort by date descending and take last 7
+    sortedData.sort((a, b) => b.date - a.date);
+    const recentDays = sortedData.slice(0, 7).reverse();
+
+    const labels = recentDays.map(d => d.date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'America/Denver' }));
+    const salesData = recentDays.map(d => d.sales);
+    const ordersDataArr = recentDays.map(d => d.orders);
+
+    // Calculate summary stats
+    const total = salesData.reduce((a, b) => a + b, 0);
+    const avg = salesData.length > 0 ? total / salesData.length : 0;
+    const best = Math.max(...salesData, 0);
+
+    // Find the last same day of week (e.g., if today is Tuesday, find last Tuesday)
+    const today = new Date();
+    const todayDayOfWeek = today.getDay();
+    let sameDayIndex = -1;
+
+    for (let i = recentDays.length - 1; i >= 0; i--) {
+        if (recentDays[i].date.getDay() === todayDayOfWeek) {
+            sameDayIndex = i;
+            break;
+        }
+    }
+
+    // Update summary
+    const totalEl = document.getElementById('seven-day-total');
+    const avgEl = document.getElementById('seven-day-avg');
+    const bestEl = document.getElementById('seven-day-best');
+    if (totalEl) totalEl.textContent = `$${Math.round(total).toLocaleString()}`;
+    if (avgEl) avgEl.textContent = `$${Math.round(avg).toLocaleString()}`;
+    if (bestEl) bestEl.textContent = `$${Math.round(best).toLocaleString()}`;
+
+    // Destroy existing chart
+    if (sevenDayChartInstance) {
+        sevenDayChartInstance.destroy();
+    }
+
+    // Create chart with dual axes
+    sevenDayChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Sales',
+                    type: 'bar',
+                    data: salesData,
+                    backgroundColor: salesData.map((val, i) => {
+                        if (i === sameDayIndex) return '#c9a227';
+                        return '#3498db';
+                    }),
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    yAxisID: 'y',
+                    order: 2
+                },
+                {
+                    label: 'Orders',
+                    type: 'line',
+                    data: ordersDataArr,
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    pointStyle: 'circle',
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    showLine: false,
+                    yAxisID: 'y1',
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.dataset.label === 'Sales') {
+                                return 'Sales: $' + context.raw.toLocaleString();
+                            }
+                            return 'Orders: ' + context.raw;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 2000,
+                        maxTicksLimit: 5,
+                        callback: function(value) {
+                            return '$' + (value / 1000).toFixed(0) + 'K';
+                        },
+                        font: { size: 10 }
+                    },
+                    grid: {
+                        color: '#e0e0e0'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 50,
+                        maxTicksLimit: 5,
+                        callback: function(value) {
+                            return value;
+                        },
+                        font: { size: 10 }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Orders',
+                        font: { size: 9 }
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        font: { size: 9 }
+                    }
+                }
+            }
+        }
+    });
+
+    // Update print-friendly HTML chart
+    updatePrintChart(recentDays, sameDayIndex);
+}
+
+function updatePrintChart(recentDays, sameDayIndex) {
+    const container = document.getElementById('print-chart-bars');
+    if (!container) return;
+
+    const maxSales = Math.max(...recentDays.map(d => d.sales), 1);
+    const maxOrders = Math.max(...recentDays.map(d => d.orders), 1);
+
+    let html = '';
+    recentDays.forEach((day, i) => {
+        const barHeight = Math.max((day.sales / maxSales) * 90, 4);
+        const isHighlight = i === sameDayIndex;
+        const label = day.date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' });
+        const salesStr = '$' + (day.sales / 1000).toFixed(1) + 'K';
+        const ordersStr = day.orders;
+
+        html += `
+            <div class="print-chart-bar-wrapper">
+                <div class="print-chart-order-label">${ordersStr}</div>
+                <div class="print-chart-dot" title="${day.orders} orders"></div>
+                <div class="print-chart-bar ${isHighlight ? 'highlight' : ''}" style="height: ${barHeight}px;">
+                    <span class="print-chart-bar-value">${salesStr}</span>
+                </div>
+                <div class="print-chart-bar-label">${label}</div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+function updateDailyTargets(store, month, dailySalesTarget, daysRemaining) {
+    const col = storeColumns[store];
+
+    // Calculate current MTD AOV
+    let totalSales = 0;
+    let totalOrders = 0;
+
+    if (netsalesData && ordersData) {
+        for (let i = 0; i < netsalesData.length && i < ordersData.length; i++) {
+            const sRow = netsalesData[i];
+            const oRow = ordersData[i];
+            const dt = new Date(sRow[2]);
+            if (isNaN(dt) || dt.getFullYear() !== CURRENT_YEAR) continue;
+            if (dt.toLocaleString('en-US', { month: 'long' }) !== month) continue;
+
+            const sales = parseFloat((sRow[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+            const orders = parseFloat(oRow[col]) || 0;
+            if (sales > 0 && orders > 0) {
+                totalSales += sales;
+                totalOrders += orders;
+            }
+        }
+    }
+
+    const currentAOV = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+    // Calculate last year's AOV
+    let lastYearSales = 0;
+    let lastYearOrders = 0;
+
+    if (netsalesData && ordersData) {
+        for (let i = 0; i < netsalesData.length && i < ordersData.length; i++) {
+            const sRow = netsalesData[i];
+            const oRow = ordersData[i];
+            const dt = new Date(sRow[2]);
+            if (isNaN(dt) || dt.getFullYear() !== LAST_YEAR) continue;
+            if (dt.toLocaleString('en-US', { month: 'long' }) !== month) continue;
+
+            const sales = parseFloat((sRow[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+            const orders = parseFloat(oRow[col]) || 0;
+            if (sales > 0 && orders > 0) {
+                lastYearSales += sales;
+                lastYearOrders += orders;
+            }
+        }
+    }
+
+    const lastYearAOV = lastYearOrders > 0 ? lastYearSales / lastYearOrders : 0;
+
+    // Daily AOV target: 5% above last year, or current + $1 if no last year data
+    const aovTarget = lastYearAOV > 0 ? lastYearAOV * 1.05 : (currentAOV > 0 ? currentAOV + 1 : 25);
+
+    // Daily orders target: sales target / AOV target
+    const dailyOrdersTarget = aovTarget > 0 ? Math.ceil(dailySalesTarget / aovTarget) : 0;
+
+    // Update the big daily targets display
+    const dailySalesEl = document.getElementById('daily-sales-target');
+    const dailyOrdersEl = document.getElementById('daily-orders-target');
+    const dailyAovEl = document.getElementById('daily-aov-target');
+
+    if (dailySalesEl) dailySalesEl.textContent = `$${Math.round(dailySalesTarget).toLocaleString()}`;
+    if (dailyOrdersEl) dailyOrdersEl.textContent = dailyOrdersTarget.toLocaleString();
+    if (dailyAovEl) dailyAovEl.textContent = `$${aovTarget.toFixed(2)}`;
+
+    // Also update hidden elements for print compatibility
+    const targetDailyEl = document.getElementById('target-daily');
+    const aovTargetEl = document.getElementById('aov-target');
+    if (targetDailyEl) targetDailyEl.textContent = `$${Math.round(dailySalesTarget).toLocaleString()}`;
+    if (aovTargetEl) aovTargetEl.textContent = `$${aovTarget.toFixed(2)}`;
+}
+
+function getMotivationalMessage(percentage, remaining, dailyTarget, aheadOfPace, daysRemaining, avgDaily) {
+    // Check if goal is realistically attainable
+    const stretchFactor = avgDaily > 0 ? dailyTarget / avgDaily : 1;
+    const isUnrealistic = stretchFactor > 2 && daysRemaining <= 10;
+    const isVeryUnrealistic = stretchFactor > 3 || (stretchFactor > 2 && daysRemaining <= 5);
+
+    // No message if goal is out of reach
+    if (isVeryUnrealistic || isUnrealistic) {
+        return '';
+    }
+
+    if (percentage >= 100) {
+        return "Goal achieved! Outstanding work - keep the momentum going!";
+    } else if (percentage >= 90) {
+        return `Almost there! Just $${remaining.toLocaleString()} to go - you've got this!`;
+    } else if (aheadOfPace && percentage >= 75) {
+        return `Crushing it! Ahead of pace with ${daysRemaining} days left. Keep it up!`;
+    } else if (aheadOfPace) {
+        return `Great start! You're ahead of pace. Today's target: $${Math.round(dailyTarget).toLocaleString()}`;
+    } else if (percentage >= 75) {
+        return `Strong position! Hit today's $${Math.round(dailyTarget).toLocaleString()} target to stay on track.`;
+    } else if (percentage >= 50) {
+        return `Let's pick up the pace! Today's target: $${Math.round(dailyTarget).toLocaleString()}`;
+    } else if (daysRemaining > 15) {
+        return `Plenty of time! Today's goal: $${Math.round(dailyTarget).toLocaleString()}.`;
+    } else {
+        return `Push time! Today's target: $${Math.round(dailyTarget).toLocaleString()} - make every sale count!`;
+    }
+}
+
+/* -------------------------------------------------------------
+   HISTORICAL DATE VIEW - Calculate data as of a specific date
+   ------------------------------------------------------------- */
+
+// Calculate MTD sales as of a specific date (up to but not including that date)
+function calculateMTDAsOf(store, asOfDate) {
+    const col = storeColumns[store];
+    const month = asOfDate.toLocaleString('en-US', { month: 'long' });
+    const year = asOfDate.getFullYear();
+    const asOfDay = asOfDate.getDate();
+
+    if (!netsalesData) return { mtd: 0, daysElapsed: 0 };
+
+    let mtd = 0;
+    let daysElapsed = 0;
+
+    // Get MTD up to (not including) asOfDate - compare by date parts, not Date objects
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (isNaN(d)) return;
+        if (d.getFullYear() !== year) return;
+        if (d.toLocaleString('en-US', { month: 'long' }) !== month) return;
+
+        // Compare by day of month - only include days BEFORE asOfDate
+        if (d.getDate() >= asOfDay) return;
+
+        const v = row[col];
+        if (!v || v.toString().trim() === '') return;
+
+        mtd += parseFloat(v.toString().replace(/[^0-9.-]+/g, '')) || 0;
+        daysElapsed++;
+    });
+
+    return { mtd, daysElapsed };
+}
+
+// Calculate smart daily target using day-of-week weighted averages
+function calculateSmartDailyTarget(store, viewDate, remaining$) {
+    const col = storeColumns[store];
+    const month = viewDate.toLocaleString('en-US', { month: 'long' });
+    const year = viewDate.getFullYear();
+    const monthIndex = viewDate.getMonth();
+    const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+    const viewDay = viewDate.getDate();
+    const viewWeekday = viewDate.toLocaleString('en-US', { weekday: 'long' });
+
+    // Count remaining days of each weekday (including viewDate)
+    const remainingCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 };
+    for (let d = viewDay; d <= totalDaysInMonth; d++) {
+        const date = new Date(year, monthIndex, d);
+        const dayName = date.toLocaleString('en-US', { weekday: 'long' });
+        remainingCount[dayName]++;
+    }
+
+    // Determine which year to use for averages (current year if ≥7 days of data, else last year)
+    let daysWithData = 0;
+    if (netsalesData) {
+        netsalesData.forEach(row => {
+            const d = new Date(row[2]);
+            if (d.getFullYear() === year && d.getMonth() === monthIndex && d.getDate() < viewDay) {
+                const val = row[col];
+                if (val != null && val.toString().trim() !== '') daysWithData++;
+            }
+        });
+    }
+
+    const useCurrentYear = daysWithData >= 7;
+    const sourceYear = useCurrentYear ? year : year - 1;
+
+    // Calculate average sales per weekday
+    const dayAverages = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 };
+    const dayCount = { Monday: 0, Tuesday: 0, Wednesday: 0, Thursday: 0, Friday: 0, Saturday: 0, Sunday: 0 };
+
+    if (netsalesData) {
+        netsalesData.forEach(row => {
+            const d = new Date(row[2]);
+            if (d.getFullYear() !== sourceYear) return;
+            if (d.getMonth() !== monthIndex) return;
+            // For current year, only include days before viewDate
+            if (useCurrentYear && d.getDate() >= viewDay) return;
+
+            const dayName = d.toLocaleString('en-US', { weekday: 'long' });
+            const cell = row[col];
+            const sales = (cell != null && cell.toString().trim() !== '')
+                ? parseFloat(cell.toString().replace(/[^0-9.-]+/g, '')) || 0
+                : 0;
+
+            if (sales > 0) {
+                dayAverages[dayName] += sales;
+                dayCount[dayName]++;
+            }
+        });
+    }
+
+    // Convert totals to averages
+    Object.keys(dayAverages).forEach(day => {
+        dayAverages[day] = dayCount[day] > 0 ? dayAverages[day] / dayCount[day] : 0;
+    });
+
+    // Calculate total expected remaining sales
+    let totalRemainingExpected = 0;
+    Object.keys(remainingCount).forEach(day => {
+        totalRemainingExpected += dayAverages[day] * remainingCount[day];
+    });
+
+    // Calculate this day's share and target
+    const viewDayAvg = dayAverages[viewWeekday] || 0;
+    const share = totalRemainingExpected > 0 ? viewDayAvg / totalRemainingExpected : 0;
+    const calculatedTarget = remaining$ * share;
+
+    // Return MAX of calculated target or the day's average
+    return Math.max(calculatedTarget, viewDayAvg);
+}
+
+// Update progress ring for a specific view date (shows data as if going into that day)
+function updateProgressRingForDate(store, viewDate) {
+    const month = viewDate.toLocaleString('en-US', { month: 'long' });
+    const year = viewDate.getFullYear();
+    const monthIndex = viewDate.getMonth();
+    const totalDaysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+
+    // Calculate MTD up to (not including) viewDate
+    const { mtd: current, daysElapsed } = calculateMTDAsOf(store, viewDate);
+
+    // Days remaining from viewDate onward
+    const dayOfMonth = viewDate.getDate();
+    const daysRemaining = Math.max(0, totalDaysInMonth - dayOfMonth + 1);
+
+    // Get monthly target and update goal selector
+    const target = calculateGoalTarget(store, month) || 1;
+    if (typeof loadGoalSelector === 'function') {
+        loadGoalSelector(store, month);
+    }
+
+    // Calculate remaining to goal
+    const remaining = Math.max(0, target - current);
+
+    // Calculate SMART daily target using day-of-week weighted logic
+    const dailyTarget = calculateSmartDailyTarget(store, viewDate, remaining);
+
+    // Calculate pace (using simple linear for comparison)
+    const daysBeforeViewDate = dayOfMonth - 1;
+    const expectedAtPace = (target * daysBeforeViewDate) / totalDaysInMonth;
+    const projectedTotal = daysElapsed > 0 ? (current / daysElapsed) * totalDaysInMonth : 0;
+
+    // Pace status
+    const aheadOfPace = current >= expectedAtPace;
+    const percentage = Math.min(Math.round((current / target) * 100), 150);
+    const displayPct = Math.min(percentage, 100);
+
+    // Update main displays
+    const pctEl = document.getElementById('progress-percentage');
+    if (pctEl) {
+        pctEl.textContent = `${percentage}%`;
+        pctEl.style.color = percentage >= 100 ? '#c9a227' : (aheadOfPace ? '#27ae60' : '#e74c3c');
+    }
+
+    // Update MTD Sales display (the big number)
+    const currentEl = document.getElementById('progress-current');
+    if (currentEl) {
+        currentEl.textContent = `$${Math.round(current).toLocaleString()}`;
+        currentEl.style.color = aheadOfPace ? '#27ae60' : '#e74c3c';
+    }
+
+    // Update Monthly Goal display
+    const goalEl = document.getElementById('progress-goal');
+    if (goalEl) {
+        goalEl.textContent = `$${Math.round(target).toLocaleString()}`;
+    }
+
+    const amountsEl = document.getElementById('progress-amounts');
+    if (amountsEl) {
+        amountsEl.textContent = `$${Math.round(current).toLocaleString()} / $${Math.round(target).toLocaleString()}`;
+    }
+
+    // Update print version
+    const amountsPrintEl = document.getElementById('progress-amounts-print');
+    if (amountsPrintEl) {
+        amountsPrintEl.textContent = `$${Math.round(current).toLocaleString()} / $${Math.round(target).toLocaleString()}`;
+    }
+
+    // Progress ring
+    const fillEl = document.getElementById('progress-ring-fill');
+    if (fillEl) {
+        const circumference = 2 * Math.PI * 70;
+        const offset = circumference - (displayPct / 100) * circumference;
+        fillEl.style.strokeDashoffset = offset;
+        fillEl.classList.remove('warning', 'gold');
+        if (percentage >= 100) fillEl.classList.add('gold');
+        else if (!aheadOfPace) fillEl.classList.add('warning');
+    }
+
+    // Progress bar
+    const barFillEl = document.getElementById('progress-bar-fill');
+    if (barFillEl) {
+        barFillEl.style.width = `${displayPct}%`;
+        barFillEl.classList.remove('warning', 'gold');
+        if (percentage >= 100) barFillEl.classList.add('gold');
+        else if (!aheadOfPace) barFillEl.classList.add('warning');
+    }
+
+    // Today's Targets - Daily Sales Goal (the big one in dark banner)
+    const dailySalesEl = document.getElementById('daily-sales-target');
+    if (dailySalesEl) dailySalesEl.textContent = `$${Math.round(dailyTarget).toLocaleString()}`;
+
+    // Also update hidden element for compatibility
+    const targetDailyEl = document.getElementById('target-daily');
+    if (targetDailyEl) targetDailyEl.textContent = `$${Math.round(dailyTarget).toLocaleString()}`;
+
+    // Days Left
+    const daysLeftEl = document.getElementById('target-days-left');
+    if (daysLeftEl) daysLeftEl.textContent = daysRemaining;
+
+    // Remaining to target (Left This Month)
+    const remainingEl = document.getElementById('target-remaining');
+    if (remainingEl) remainingEl.textContent = `$${Math.round(remaining).toLocaleString()}`;
+
+    // Pace Status card
+    const paceStatusEl = document.getElementById('pace-status');
+    const paceStatusCard = document.getElementById('pace-status-card');
+    const paceDetailEl = document.getElementById('pace-status-detail');
+    if (paceStatusEl) {
+        if (aheadOfPace) {
+            paceStatusEl.textContent = 'On Track';
+            paceStatusEl.style.color = '#27ae60';
+            if (paceStatusCard) paceStatusCard.style.borderColor = '#27ae60';
+        } else {
+            const behindBy = Math.round(expectedAtPace - current);
+            paceStatusEl.textContent = 'Behind';
+            paceStatusEl.style.color = '#e74c3c';
+            if (paceStatusCard) paceStatusCard.style.borderColor = '#e74c3c';
+        }
+    }
+    if (paceDetailEl) {
+        const diff = Math.round(current - expectedAtPace);
+        paceDetailEl.textContent = diff >= 0 ? `+$${diff.toLocaleString()} vs pace` : `-$${Math.abs(diff).toLocaleString()} vs pace`;
+    }
+
+    // Progress bar labels
+    const progressBarTarget = document.getElementById('progress-bar-target');
+    if (progressBarTarget) progressBarTarget.textContent = `$${Math.round(target).toLocaleString()}`;
+
+    const progressPaceLabel = document.getElementById('progress-pace-label');
+    if (progressPaceLabel) {
+        progressPaceLabel.textContent = `On pace for $${Math.round(projectedTotal).toLocaleString()}`;
+    }
+
+    // Motivational message
+    const avgDaily = daysElapsed > 0 ? current / daysElapsed : 0;
+    const msgEl = document.getElementById('motivational-message');
+    if (msgEl) {
+        const msg = getMotivationalMessage(percentage, remaining, dailyTarget, aheadOfPace, daysRemaining, avgDaily);
+        if (msg) {
+            msgEl.textContent = msg;
+            msgEl.style.display = 'block';
+        } else {
+            msgEl.style.display = 'none';
+        }
+    }
+
+    // Daily targets section (orders, AOV)
+    updateDailyTargetsForDate(store, month, dailyTarget, daysRemaining, viewDate);
+
+    // Year over year comparison
+    updateYoYForDate(store, viewDate, current);
+
+    // Update 7-day chart
+    updateSevenDayChartForDate(store, viewDate);
+}
+
+function updateDailyTargetsForDate(store, month, dailySalesTarget, daysRemaining, viewDate) {
+    const col = storeColumns[store];
+    const year = viewDate.getFullYear();
+    const viewDay = viewDate.getDate();
+    const viewMonth = viewDate.getMonth();
+
+    // Calculate MTD AOV up to viewDate
+    let totalSales = 0;
+    let totalOrders = 0;
+
+    if (netsalesData && ordersData) {
+        for (let i = 0; i < netsalesData.length && i < ordersData.length; i++) {
+            const sRow = netsalesData[i];
+            const oRow = ordersData[i];
+            const dt = new Date(sRow[2]);
+            if (isNaN(dt) || dt.getFullYear() !== year) continue;
+            if (dt.getMonth() !== viewMonth) continue;
+            // Compare by day - only include days BEFORE viewDate
+            if (dt.getDate() >= viewDay) continue;
+
+            const sales = parseFloat((sRow[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+            const orders = parseFloat(oRow[col]) || 0;
+            if (sales > 0 && orders > 0) {
+                totalSales += sales;
+                totalOrders += orders;
+            }
+        }
+    }
+
+    const currentAOV = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+    // Calculate order target
+    const orderTarget = currentAOV > 0 ? Math.ceil(dailySalesTarget / currentAOV) : 0;
+    const aovTarget = currentAOV > 0 ? currentAOV * 1.05 : 0;
+
+    // Update UI - Daily Orders Target (in dark banner)
+    const dailyOrdersEl = document.getElementById('daily-orders-target');
+    if (dailyOrdersEl) dailyOrdersEl.textContent = orderTarget || '--';
+
+    // Also update hidden element for compatibility
+    const orderTargetEl = document.getElementById('target-orders');
+    if (orderTargetEl) orderTargetEl.textContent = orderTarget || '--';
+
+    // Daily AOV Target (in dark banner)
+    const dailyAovEl = document.getElementById('daily-aov-target');
+    if (dailyAovEl) dailyAovEl.textContent = `$${aovTarget.toFixed(2)}`;
+
+    // Also update hidden element for compatibility
+    const aovTargetEl = document.getElementById('target-aov');
+    if (aovTargetEl) aovTargetEl.textContent = `$${aovTarget.toFixed(2)}`;
+}
+
+// Calculate Year-over-Year comparison for a specific date
+function updateYoYForDate(store, viewDate, currentMTD) {
+    const col = storeColumns[store];
+    const lastYear = viewDate.getFullYear() - 1;
+    const viewMonth = viewDate.getMonth();
+    const viewDay = viewDate.getDate();
+
+    if (!netsalesData) return;
+
+    // Calculate last year's MTD up to the same day
+    let lastYearMTD = 0;
+    netsalesData.forEach(row => {
+        const d = new Date(row[2]);
+        if (isNaN(d)) return;
+        if (d.getFullYear() !== lastYear) return;
+        if (d.getMonth() !== viewMonth) return;
+        if (d.getDate() >= viewDay) return;
+
+        const v = row[col];
+        if (!v || v.toString().trim() === '') return;
+        lastYearMTD += parseFloat(v.toString().replace(/[^0-9.-]+/g, '')) || 0;
+    });
+
+    // Calculate YoY change
+    const yoyChange = lastYearMTD > 0 ? ((currentMTD - lastYearMTD) / lastYearMTD) * 100 : 0;
+
+    // Update UI
+    const yoyEl = document.getElementById('yoy-change');
+    if (yoyEl) {
+        const sign = yoyChange >= 0 ? '+' : '';
+        yoyEl.textContent = `${sign}${yoyChange.toFixed(1)}%`;
+        yoyEl.style.color = yoyChange >= 0 ? '#27ae60' : '#e74c3c';
+    }
+
+    // Update last year MTD hidden element
+    const lastYearMtdEl = document.getElementById('last-year-mtd');
+    if (lastYearMtdEl) lastYearMtdEl.textContent = `$${Math.round(lastYearMTD).toLocaleString()}`;
+}
+
+// Update 7-day chart ending at the day before viewDate
+function updateSevenDayChartForDate(store, viewDate) {
+    const col = storeColumns[store];
+    const ctx = document.getElementById('seven-day-chart');
+    if (!ctx || !netsalesData) return;
+
+    // Get 7 days of data BEFORE viewDate - create cutoff date at start of viewDate
+    const sortedData = [];
+    const viewYear = viewDate.getFullYear();
+    const viewMonth = viewDate.getMonth();
+    const viewDay = viewDate.getDate();
+
+    // Helper to check if date is before viewDate
+    function isBeforeViewDate(dt) {
+        if (dt.getFullYear() < viewYear) return true;
+        if (dt.getFullYear() > viewYear) return false;
+        if (dt.getMonth() < viewMonth) return true;
+        if (dt.getMonth() > viewMonth) return false;
+        return dt.getDate() < viewDay;
+    }
+
+    // Collect all sales data for this store up to (not including) viewDate
+    netsalesData.forEach(row => {
+        const dt = new Date(row[2]);
+        if (isNaN(dt)) return;
+        if (!isBeforeViewDate(dt)) return; // Only include days before viewDate
+        const sales = parseFloat((row[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+        if (sales > 0) {
+            sortedData.push({ date: dt, dateStr: dt.toLocaleDateString('en-US'), sales: sales, orders: 0 });
+        }
+    });
+
+    // Add orders data
+    if (ordersData) {
+        ordersData.forEach(row => {
+            const dt = new Date(row[2]);
+            if (isNaN(dt)) return;
+            if (!isBeforeViewDate(dt)) return;
+            const orders = parseInt(row[col]) || 0;
+            const dateStr = dt.toLocaleDateString('en-US');
+            const existing = sortedData.find(d => d.dateStr === dateStr);
+            if (existing) {
+                existing.orders = orders;
+            }
+        });
+    }
+
+    // Sort by date descending and take last 7
+    sortedData.sort((a, b) => b.date - a.date);
+    const recentDays = sortedData.slice(0, 7).reverse();
+
+    const labels = recentDays.map(d => d.date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric', timeZone: 'America/Denver' }));
+    const salesData = recentDays.map(d => d.sales);
+    const ordersDataArr = recentDays.map(d => d.orders);
+
+    // Find the same day of week as viewDate
+    const viewDayOfWeek = viewDate.getDay();
+    let sameDayIndex = -1;
+
+    for (let i = recentDays.length - 1; i >= 0; i--) {
+        if (recentDays[i].date.getDay() === viewDayOfWeek) {
+            sameDayIndex = i;
+            break;
+        }
+    }
+
+    // Update summary
+    const total = salesData.reduce((a, b) => a + b, 0);
+    const avg = salesData.length > 0 ? total / salesData.length : 0;
+    const best = Math.max(...salesData, 0);
+
+    const totalEl = document.getElementById('seven-day-total');
+    const avgEl = document.getElementById('seven-day-avg');
+    const bestEl = document.getElementById('seven-day-best');
+    if (totalEl) totalEl.textContent = `$${Math.round(total).toLocaleString()}`;
+    if (avgEl) avgEl.textContent = `$${Math.round(avg).toLocaleString()}`;
+    if (bestEl) bestEl.textContent = `$${Math.round(best).toLocaleString()}`;
+
+    // Destroy existing chart
+    if (sevenDayChartInstance) {
+        sevenDayChartInstance.destroy();
+    }
+
+    // Create chart with dual axes
+    sevenDayChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Sales',
+                    type: 'bar',
+                    data: salesData,
+                    backgroundColor: salesData.map((val, i) => {
+                        if (i === sameDayIndex) return '#c9a227';
+                        return '#3498db';
+                    }),
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    yAxisID: 'y',
+                    order: 2
+                },
+                {
+                    label: 'Orders',
+                    type: 'line',
+                    data: ordersDataArr,
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    pointStyle: 'circle',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    showLine: false,
+                    yAxisID: 'y1',
+                    order: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            if (context.dataset.label === 'Sales') {
+                                return `Sales: $${context.raw.toLocaleString()}`;
+                            } else {
+                                return `Orders: ${context.raw}`;
+                            }
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    position: 'left',
+                    ticks: {
+                        stepSize: 500,
+                        callback: function(value) {
+                            return '$' + (value / 1000).toFixed(1) + 'K';
+                        }
+                    },
+                    grid: { display: true }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    ticks: {
+                        stepSize: 20
+                    },
+                    grid: { display: false }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    // Update print-friendly chart
+    updatePrintChart(recentDays, sameDayIndex);
+}
+
+// Make functions available globally
+window.updateProgressRingForDate = updateProgressRingForDate;
+window.updateSevenDayChartForDate = updateSevenDayChartForDate;
+
+/* -------------------------------------------------------------
+   MANAGER UI - Quick Stats
+   ------------------------------------------------------------- */
+function updateQuickStats(store) {
+    const month = document.getElementById('month-filter')?.value || '';
+    const data = calculateSalesData(store, month);
+
+    // Get last day's data for orders/AOV
+    const lastDate = getLastDataDate(store, month);
+    let lastDayOrders = 0;
+    let lastDaySales = 0;
+
+    if (lastDate && ordersData && netsalesData) {
+        const col = storeColumns[store];
+        const dateStr = lastDate.toLocaleDateString('en-US');
+
+        for (const row of ordersData) {
+            if (row[2] && new Date(row[2]).toLocaleDateString('en-US') === dateStr) {
+                lastDayOrders = parseInt(row[col]) || 0;
+                break;
+            }
+        }
+
+        for (const row of netsalesData) {
+            if (row[2] && new Date(row[2]).toLocaleDateString('en-US') === dateStr) {
+                lastDaySales = parseFloat((row[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+                break;
+            }
+        }
+    }
+
+    const aov = lastDayOrders > 0 ? lastDaySales / lastDayOrders : 0;
+
+    // Update UI
+    const ordersEl = document.getElementById('stat-orders');
+    if (ordersEl) ordersEl.textContent = lastDayOrders.toLocaleString();
+
+    const aovEl = document.getElementById('stat-aov');
+    if (aovEl) aovEl.textContent = `$${aov.toFixed(2)}`;
+
+    const hoursEl = document.getElementById('stat-staff-hours');
+    if (hoursEl) hoursEl.textContent = `${totalStaffingHours || 0}h`;
+}
+
+/* -------------------------------------------------------------
+   MANAGER UI - Team Cards with Notes
+   ------------------------------------------------------------- */
+let currentScheduleDate = null;
+let currentShifts = [];
+
+async function renderTeamCards(store, scheduleDate, shifts) {
+    currentScheduleDate = scheduleDate;
+    currentShifts = shifts;
+
+    const container = document.getElementById('team-list');
+    const dateDisplay = document.getElementById('schedule-date-display');
+    const totalsEl = document.getElementById('staff-totals');
+
+    if (!container) return;
+
+    // Update date display (Mountain Time)
+    if (dateDisplay) {
+        dateDisplay.textContent = scheduleDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'America/Denver'
+        });
+    }
+
+    if (shifts.length === 0) {
+        container.innerHTML = `
+            <div class="no-schedule">
+                <div class="no-schedule-icon">📅</div>
+                <p>No shifts scheduled for this day</p>
+            </div>
+        `;
+        if (totalsEl) totalsEl.style.display = 'none';
+        return;
+    }
+
+    // Load existing notes
+    const dateKey = formatDateLocal(scheduleDate);
+    const notes = await NotesManager.loadNotes(store, dateKey);
+
+    // Sort shifts by start time
+    shifts.sort((a, b) => a.start.localeCompare(b.start));
+
+    // Determine store hours for Gantt bar positioning
+    const isWeekend = scheduleDate.getDay() === 0 || scheduleDate.getDay() === 6;
+    let openHour, closeHour;
+    if (store === "CAFE") {
+        openHour = 7; closeHour = 15;
+    } else if (store === "FEELLOVE") {
+        if (isWeekend) { openHour = 7; closeHour = 16; }
+        else { openHour = 6; closeHour = 19; }
+    } else {
+        openHour = 6; closeHour = 17;
+    }
+    const visibleStart = openHour - 1;
+    const visibleEnd = closeHour + 1;
+    const visibleHours = visibleEnd - visibleStart;
+
+    // Render cards
+    let html = '';
+    let totalHours = 0;
+
+    shifts.forEach(shift => {
+        const shiftHours = calculateShiftHours(shift.start, shift.end);
+        totalHours += shiftHours;
+
+        const existingNote = notes.staff[shift.employee]?.note || '';
+        const shiftTime = formatShiftTime(shift.start, shift.end);
+
+        // Calculate Gantt bar position
+        const [sh, sm] = shift.start.split(':').map(Number);
+        const [eh, em] = shift.end.split(':').map(Number);
+        const startDecimal = sh + sm/60;
+        let endDecimal = eh + em/60;
+        if (endDecimal < startDecimal) endDecimal += 24;
+
+        let barLeft = ((startDecimal - visibleStart) / visibleHours) * 100;
+        let barWidth = ((endDecimal - startDecimal) / visibleHours) * 100;
+        if (barLeft < 0) { barWidth += barLeft; barLeft = 0; }
+        if (barLeft + barWidth > 100) { barWidth = 100 - barLeft; }
+
+        html += `
+            <div class="staff-card">
+                <div class="staff-header">
+                    <span class="staff-name">${shift.employee}</span>
+                    <div class="shift-gantt-bar" style="flex: 1; min-width: 200px; height: 32px; background: #e8e8e8; border-radius: 6px; position: relative; margin-left: 12px;">
+                        <div style="position: absolute; left: ${barLeft}%; width: ${barWidth}%; height: 100%; background: linear-gradient(90deg, #3498db, #2980b9); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.85rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                            ${shiftTime}
+                        </div>
+                    </div>
+                    <button id="copy-btn-${sanitizeId(shift.employee)}" class="no-print"
+                            onclick="copyStaffNoteFromPrevious('${shift.employee.replace(/'/g, "\\'")}')"
+                            style="padding: 4px 8px; font-size: 0.75rem; background: #f8f8f8; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #666; margin-left: 8px;"
+                            title="Copy from previous note">↩</button>
+                </div>
+                <textarea class="staff-note-input"
+                          id="note-${sanitizeId(shift.employee)}"
+                          data-employee="${shift.employee}"
+                          data-store="${store}"
+                          data-date="${dateKey}"
+                          placeholder="Add note for ${shift.employee}..."
+                          onblur="saveStaffNote(this)">${existingNote}</textarea>
+                <div class="note-status" id="status-${sanitizeId(shift.employee)}"></div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
+
+    // Update totals
+    if (totalsEl) {
+        totalsEl.style.display = 'flex';
+        document.getElementById('total-staff-hours').textContent = `${totalHours.toFixed(1)}h`;
+    }
+
+    // Load day note
+    loadDayNote(store, dateKey);
+}
+
+function sanitizeId(str) {
+    return str.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function calculateShiftHours(start, end) {
+    const [sh, sm] = start.split(':').map(Number);
+    const [eh, em] = end.split(':').map(Number);
+    let hours = eh - sh + (em - sm) / 60;
+    if (hours < 0) hours += 24;
+    return hours;
+}
+
+function formatShiftTime(start, end) {
+    const format = (t) => {
+        let [h, m] = t.split(':').map(Number);
+        const ampm = h >= 12 ? 'pm' : 'am';
+        h = h % 12 || 12;
+        return `${h}:${m.toString().padStart(2, '0')}${ampm}`;
+    };
+    return `${format(start)} - ${format(end)}`;
+}
+
+async function saveStaffNote(textarea) {
+    const employee = textarea.dataset.employee;
+    const store = textarea.dataset.store;
+    const date = textarea.dataset.date;
+    const note = textarea.value;
+
+    const statusEl = document.getElementById(`status-${sanitizeId(employee)}`);
+    if (statusEl) {
+        statusEl.textContent = 'Saving...';
+        statusEl.className = 'note-status saving';
+    }
+
+    const success = await NotesManager.saveStaffNote(store, date, employee, note);
+
+    if (statusEl) {
+        statusEl.textContent = success ? 'Saved' : 'Error saving';
+        statusEl.className = success ? 'note-status saved' : 'note-status';
+        setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.className = 'note-status';
+        }, 2000);
+    }
+}
+
+async function loadDayNote(store, dateKey) {
+    const textarea = document.getElementById('day-note-input');
+    if (!textarea) return;
+
+    const notes = await NotesManager.loadNotes(store, dateKey);
+    textarea.value = notes.dayNote || '';
+
+    // Store current context
+    textarea.dataset.store = store;
+    textarea.dataset.date = dateKey;
+}
+
+// Day note save handler
+document.getElementById('day-note-input')?.addEventListener('blur', async function() {
+    const store = this.dataset.store;
+    const date = this.dataset.date;
+    const note = this.value;
+
+    if (!store || !date) return;
+
+    const statusEl = document.getElementById('day-note-status');
+    if (statusEl) {
+        statusEl.textContent = 'Saving...';
+        statusEl.className = 'note-status saving';
+    }
+
+    const success = await NotesManager.saveDayNote(store, date, note);
+
+    if (statusEl) {
+        statusEl.textContent = success ? 'Saved' : 'Error saving';
+        statusEl.className = success ? 'note-status saved' : 'note-status';
+        setTimeout(() => {
+            statusEl.textContent = '';
+            statusEl.className = 'note-status';
+        }, 2000);
+    }
+});
+
+function generatePrintableChart(store) {
+    const col = storeColumns[store];
+    if (!netsalesData) return '';
+
+    // Get last 7 days of data
+    const sortedData = [];
+    netsalesData.forEach(row => {
+        const dt = new Date(row[2]);
+        if (isNaN(dt)) return;
+        const sales = parseFloat((row[col] + '').replace(/[^0-9.-]+/g, '')) || 0;
+        if (sales > 0) {
+            sortedData.push({ date: dt, sales: sales });
+        }
+    });
+
+    sortedData.sort((a, b) => b.date - a.date);
+    const recentDays = sortedData.slice(0, 7).reverse();
+
+    if (recentDays.length === 0) return '<p>No recent data</p>';
+
+    const maxSales = Math.max(...recentDays.map(d => d.sales));
+    const best = Math.max(...recentDays.map(d => d.sales));
+
+    let html = '<div style="display: flex; align-items: flex-end; justify-content: space-around; height: 100px; gap: 8px; margin-bottom: 8px;">';
+
+    recentDays.forEach(d => {
+        const heightPct = (d.sales / maxSales) * 100;
+        const isBest = d.sales === best;
+        const dayLabel = d.date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/Denver' });
+        const color = isBest ? '#c9a227' : '#3498db';
+
+        html += `
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 8pt; margin-bottom: 2px;">$${Math.round(d.sales / 1000)}K</div>
+                <div style="height: ${heightPct}px; background: ${color}; border-radius: 4px 4px 0 0; min-height: 10px;"></div>
+                <div style="font-size: 8pt; margin-top: 4px;">${dayLabel}</div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    return html;
+}
+
+/* -------------------------------------------------------------
+   MANAGER UI - Print Dashboard (Updated)
+   ------------------------------------------------------------- */
+function printDashboard() {
+    // Resize chart for print dimensions before printing
+    if (sevenDayChartInstance) {
+        sevenDayChartInstance.resize();
+    }
+
+    // Small delay to let chart redraw, then print
+    setTimeout(() => {
+        window.print();
+    }, 100);
+}
+
+// Handle print events to resize chart properly
+window.addEventListener('beforeprint', () => {
+    if (sevenDayChartInstance) {
+        sevenDayChartInstance.resize();
+    }
+});
+
+window.addEventListener('afterprint', () => {
+    if (sevenDayChartInstance) {
+        sevenDayChartInstance.resize();
+    }
+});
+
+function printDashboard_OLD() {
+    const store = document.getElementById('store-filter').value;
+    const storeName = document.getElementById('store-filter').options[document.getElementById('store-filter').selectedIndex].text;
+
+    const scheduleDate = currentScheduleDate
+        ? currentScheduleDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+        : 'Today';
+
+    // Collect staff notes with Gantt bars
+    let staffNotesHTML = '';
+    if (currentShifts.length > 0) {
+        // Determine store hours for Gantt positioning
+        const isWeekend = currentScheduleDate ? (currentScheduleDate.getDay() === 0 || currentScheduleDate.getDay() === 6) : false;
+        let openHour, closeHour;
+        if (store === "CAFE") { openHour = 7; closeHour = 15; }
+        else if (store === "FEELLOVE") { openHour = isWeekend ? 7 : 6; closeHour = isWeekend ? 16 : 19; }
+        else { openHour = 6; closeHour = 17; }
+        const visibleStart = openHour - 1;
+        const visibleEnd = closeHour + 1;
+        const visibleHours = visibleEnd - visibleStart;
+
+        staffNotesHTML = '<table class="print-staff-table"><thead><tr><th style="width:20%;">Name</th><th style="width:35%;">Shift</th><th style="width:45%;">Notes</th></tr></thead><tbody>';
+        currentShifts.forEach(shift => {
+            const noteEl = document.getElementById(`note-${sanitizeId(shift.employee)}`);
+            const note = noteEl ? noteEl.value : '';
+            const shiftTime = formatShiftTime(shift.start, shift.end);
+            const shiftHours = calculateShiftHours(shift.start, shift.end);
+
+            // Calculate Gantt bar
+            const [sh, sm] = shift.start.split(':').map(Number);
+            const [eh, em] = shift.end.split(':').map(Number);
+            const startDecimal = sh + sm/60;
+            let endDecimal = eh + em/60;
+            if (endDecimal < startDecimal) endDecimal += 24;
+            let barLeft = ((startDecimal - visibleStart) / visibleHours) * 100;
+            let barWidth = ((endDecimal - startDecimal) / visibleHours) * 100;
+            if (barLeft < 0) { barWidth += barLeft; barLeft = 0; }
+            if (barLeft + barWidth > 100) { barWidth = 100 - barLeft; }
+
+            const ganttBar = `
+                <div style="background: #e0e0e0; height: 24px; border-radius: 4px; position: relative; width: 100%;">
+                    <div style="position: absolute; left: ${barLeft}%; width: ${barWidth}%; height: 100%; background: #3498db; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: white; font-size: 9pt; font-weight: bold;">
+                        ${shiftTime}
+                    </div>
+                </div>
+            `;
+
+            staffNotesHTML += `<tr><td><strong>${shift.employee}</strong></td><td>${ganttBar}</td><td>${note || '<em>(No notes)</em>'}</td></tr>`;
+        });
+        staffNotesHTML += '</tbody></table>';
+    } else {
+        staffNotesHTML = '<p style="text-align: center; color: #666;">No shifts scheduled</p>';
+    }
+
+    // Get day note
+    const dayNote = document.getElementById('day-note-input')?.value || '';
+
+    // Get progress info
+    const progressPct = document.getElementById('progress-percentage')?.textContent || '--%';
+    const progressAmounts = document.getElementById('progress-amounts')?.textContent || '';
+    const motivationalMsg = document.getElementById('motivational-message')?.textContent || '';
+
+    // Get 7-day summary
+    const sevenDayTotal = document.getElementById('seven-day-total')?.textContent || '$0';
+    const sevenDayAvg = document.getElementById('seven-day-avg')?.textContent || '$0';
+    const sevenDayBest = document.getElementById('seven-day-best')?.textContent || '$0';
+    const staffHours = totalStaffingHours ? `${totalStaffingHours}h` : '--';
+
+    // Generate 7-day chart HTML for print
+    const sevenDayChartHTML = generatePrintableChart(store);
+
+    // Get target cards
+    const targetRemaining = document.getElementById('target-remaining')?.textContent || '$0';
+    const targetDaily = document.getElementById('target-daily')?.textContent || '$0';
+    const targetDaysLeft = document.getElementById('target-days-left')?.textContent || '0';
+    const paceStatus = document.getElementById('pace-status')?.textContent || '--';
+    const paceStatusDetail = document.getElementById('pace-status-detail')?.textContent || '';
+
+    // Get daily targets
+    const dailySalesTarget = document.getElementById('daily-sales-target')?.textContent || '$0';
+    const dailyOrdersTarget = document.getElementById('daily-orders-target')?.textContent || '0';
+    const dailyAovTarget = document.getElementById('daily-aov-target')?.textContent || '$0';
+    const yoyChange = document.getElementById('yoy-change')?.textContent || '--';
+
+    // Get main progress
+    const progressCurrent = document.getElementById('progress-current')?.textContent || '$0';
+    const progressGoal = document.getElementById('progress-goal')?.textContent || '$0';
+
+    const printHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${storeName} - ${scheduleDate}</title>
+            <style>
+                @page { size: letter landscape; margin: 0.25in; }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                html, body {
+                    height: 100%;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+                    background: white; color: #333;
+                    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+                }
+                body {
+                    display: flex;
+                    flex-direction: column;
+                    height: 8in;
+                }
+
+                /* Header */
+                .header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 3px solid #333;
+                    padding-bottom: 6px;
+                    margin-bottom: 10px;
+                }
+                .header h1 { font-size: 20pt; }
+                .header .date { font-size: 13pt; font-weight: 600; }
+
+                /* Top row: Targets + Chart side by side */
+                .top-row {
+                    display: flex;
+                    gap: 12px;
+                    margin-bottom: 10px;
+                }
+
+                /* Targets section */
+                .targets-section {
+                    flex: 1;
+                    background: linear-gradient(135deg, #2c3e50, #34495e);
+                    border-radius: 10px;
+                    padding: 16px;
+                    color: white;
+                }
+                .targets-title { font-size: 11pt; opacity: 0.9; margin-bottom: 10px; text-align: center; }
+                .targets-grid {
+                    display: flex;
+                    justify-content: space-around;
+                    margin-bottom: 14px;
+                }
+                .target { text-align: center; }
+                .target-value { font-size: 24pt; font-weight: 700; }
+                .target-label { font-size: 9pt; opacity: 0.8; }
+                .progress-row {
+                    display: flex;
+                    justify-content: space-around;
+                    padding-top: 10px;
+                    border-top: 1px solid rgba(255,255,255,0.2);
+                }
+                .progress-item { text-align: center; }
+                .progress-value { font-size: 14pt; font-weight: 600; }
+                .progress-label { font-size: 8pt; opacity: 0.7; }
+
+                /* Chart section */
+                .chart-section {
+                    flex: 1.5;
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    padding: 10px;
+                }
+                .chart-title { font-size: 11pt; font-weight: bold; margin-bottom: 6px; }
+                .chart-container { height: 90px; }
+                .chart-summary {
+                    display: flex;
+                    justify-content: space-around;
+                    padding-top: 6px;
+                    border-top: 1px solid #eee;
+                    font-size: 9pt;
+                }
+
+                /* Bottom row: Team + Notes side by side */
+                .bottom-row {
+                    flex: 1;
+                    display: flex;
+                    gap: 12px;
+                    min-height: 0;
+                }
+
+                /* Team section */
+                .team-section {
+                    flex: 2;
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .section-title {
+                    font-size: 12pt;
+                    font-weight: bold;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 5px;
+                    margin-bottom: 8px;
+                }
+                .staff-grid {
+                    flex: 1;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 6px;
+                    align-content: stretch;
+                }
+                .staff-card {
+                    border: 1px solid #888;
+                    border-left: 4px solid #333;
+                    border-radius: 5px;
+                    padding: 8px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .staff-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 5px;
+                }
+                .staff-name { font-weight: bold; font-size: 10pt; min-width: 85px; }
+                .gantt-container {
+                    flex: 1;
+                    background: #e0e0e0;
+                    height: 20px;
+                    border-radius: 4px;
+                    position: relative;
+                }
+                .gantt-bar {
+                    position: absolute;
+                    height: 100%;
+                    background: linear-gradient(90deg, #3498db, #2980b9);
+                    border-radius: 4px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    color: white;
+                    font-size: 8pt;
+                    font-weight: 600;
+                }
+                .staff-note {
+                    flex: 1;
+                    background: #f8f8f8;
+                    border: 1px solid #ccc;
+                    border-radius: 3px;
+                    padding: 5px;
+                    font-size: 9pt;
+                    min-height: 20px;
+                }
+                .staff-note.empty { color: #999; font-style: italic; }
+                .staff-totals {
+                    margin-top: 6px;
+                    padding: 6px 10px;
+                    background: #e8e8e8;
+                    border-radius: 4px;
+                    font-weight: 600;
+                    font-size: 10pt;
+                    display: flex;
+                    justify-content: space-between;
+                }
+
+                /* Notes section */
+                .notes-section {
+                    flex: 1;
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    padding: 10px;
+                    display: flex;
+                    flex-direction: column;
+                }
+                .day-notes {
+                    flex: 1;
+                    background: #f8f8f8;
+                    border: 1px solid #ccc;
+                    border-radius: 5px;
+                    padding: 10px;
+                    font-size: 10pt;
+                    line-height: 1.4;
+                }
+                .day-notes.empty { color: #999; font-style: italic; }
+
+                /* Signature */
+                .signature-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 10px;
+                    padding-top: 8px;
+                    border-top: 2px solid #333;
+                }
+                .signature-field { width: 35%; }
+                .signature-field label { font-size: 9pt; color: #666; display: block; margin-bottom: 3px; }
+                .signature-field .line { border-bottom: 2px solid #333; height: 20px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>${storeName}</h1>
+                <div class="date">${scheduleDate}</div>
+            </div>
+
+            <div class="top-row">
+                <div class="targets-section">
+                    <div class="targets-title">Today's Targets</div>
+                    <div class="targets-grid">
+                        <div class="target">
+                            <div class="target-value">${dailySalesTarget}</div>
+                            <div class="target-label">Sales Goal</div>
+                        </div>
+                        <div class="target">
+                            <div class="target-value">${dailyOrdersTarget}</div>
+                            <div class="target-label">Orders Goal</div>
+                        </div>
+                        <div class="target">
+                            <div class="target-value">${dailyAovTarget}</div>
+                            <div class="target-label">AOV Goal</div>
+                        </div>
+                    </div>
+                    <div class="progress-row">
+                        <div class="progress-item">
+                            <div class="progress-value">${progressPct}</div>
+                            <div class="progress-label">of goal</div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-value">${progressCurrent}</div>
+                            <div class="progress-label">MTD</div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-value">${targetRemaining}</div>
+                            <div class="progress-label">remaining</div>
+                        </div>
+                        <div class="progress-item">
+                            <div class="progress-value">${targetDaysLeft}</div>
+                            <div class="progress-label">days left</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chart-section">
+                    <div class="chart-title">Last 7 Days</div>
+                    <div class="chart-container">${sevenDayChartHTML}</div>
+                    <div class="chart-summary">
+                        <div><strong>${sevenDayTotal}</strong> Total</div>
+                        <div><strong>${sevenDayAvg}</strong> Avg/Day</div>
+                        <div><strong>${sevenDayBest}</strong> Best</div>
+                        <div><strong>${staffHours}</strong> Staff Hrs</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bottom-row">
+                <div class="team-section">
+                    <div class="section-title">Today's Team</div>
+                    <div class="staff-grid">
+                        ${currentShifts.map(shift => {
+                            const noteEl = document.getElementById('note-' + sanitizeId(shift.employee));
+                            const note = noteEl ? noteEl.value : '';
+                            const shiftTime = formatShiftTime(shift.start, shift.end);
+
+                            const isWeekend = currentScheduleDate ? (currentScheduleDate.getDay() === 0 || currentScheduleDate.getDay() === 6) : false;
+                            let openHour, closeHour;
+                            if (store === "CAFE") { openHour = 7; closeHour = 15; }
+                            else if (store === "FEELLOVE") { openHour = isWeekend ? 7 : 6; closeHour = isWeekend ? 16 : 19; }
+                            else { openHour = 6; closeHour = 17; }
+                            const visibleStart = openHour - 1;
+                            const visibleEnd = closeHour + 1;
+                            const visibleHours = visibleEnd - visibleStart;
+
+                            const [sh, sm] = shift.start.split(':').map(Number);
+                            const [eh, em] = shift.end.split(':').map(Number);
+                            const startDecimal = sh + sm/60;
+                            let endDecimal = eh + em/60;
+                            if (endDecimal < startDecimal) endDecimal += 24;
+                            let barLeft = ((startDecimal - visibleStart) / visibleHours) * 100;
+                            let barWidth = ((endDecimal - startDecimal) / visibleHours) * 100;
+                            if (barLeft < 0) { barWidth += barLeft; barLeft = 0; }
+                            if (barLeft + barWidth > 100) { barWidth = 100 - barLeft; }
+
+                            return '<div class="staff-card">' +
+                                '<div class="staff-header">' +
+                                    '<span class="staff-name">' + shift.employee + '</span>' +
+                                    '<div class="gantt-container">' +
+                                        '<div class="gantt-bar" style="left:' + barLeft + '%;width:' + barWidth + '%;">' + shiftTime + '</div>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="staff-note ' + (note ? '' : 'empty') + '">' + (note || 'Notes:') + '</div>' +
+                            '</div>';
+                        }).join('')}
+                    </div>
+                    <div class="staff-totals">
+                        <span>Total Staff Hours</span>
+                        <span>${staffHours}</span>
+                    </div>
+                </div>
+
+                <div class="notes-section">
+                    <div class="section-title">Daily Notes</div>
+                    <div class="day-notes ${dayNote ? '' : 'empty'}">${dayNote || 'Notes, reminders, focus areas...'}</div>
+                </div>
+            </div>
+
+            <div class="signature-row">
+                <div class="signature-field">
+                    <label>Manager Signature</label>
+                    <div class="line"></div>
+                </div>
+                <div class="signature-field">
+                    <label>Date</label>
+                    <div class="line"></div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+
+    const printWin = window.open('', '_blank', 'width=800,height=1000');
+    printWin.document.write(printHTML);
+    printWin.document.close();
+    printWin.focus();
+    setTimeout(() => printWin.print(), 400);
+}
