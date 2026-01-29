@@ -61,9 +61,21 @@
 </head>
 <body>
 
+<!-- PRINT HEADER (only shows when printing) -->
+<div class="print-header print-only">
+    <img src="https://feellovecoffee.com/wp-content/uploads/2024/09/FLC_Logo_Transp.svg" alt="FeelLove Coffee" class="print-logo">
+    <div class="print-header-text">
+        <div class="print-store-name" id="print-store-name">Cafe FeelLove</div>
+        <div class="print-header-date" id="print-header-date"></div>
+    </div>
+</div>
+
 <!-- HEADER -->
 <header class="dashboard-header">
-    <h1>FeelLove Coffee</h1>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px;">
+        <img src="https://feellovecoffee.com/wp-content/uploads/2024/09/fl_logo.svg" alt="FeelLove Coffee" style="height: 60px;">
+        <h1 style="margin: 0;">FeelLove Coffee</h1>
+    </div>
     <div class="date-nav no-print" style="display: flex; align-items: center; gap: 12px; margin: 8px 0;">
         <button onclick="changeDay(-1)" style="padding: 8px 16px; font-size: 1.2rem; border: 2px solid #c9a227; border-radius: 8px; background: white; cursor: pointer;">&larr;</button>
         <div class="date" id="current-date" style="font-size: 1.1rem; font-weight: 600; min-width: 200px; text-align: center;">Loading...</div>
@@ -73,10 +85,10 @@
     <div class="date print-only" id="print-date" style="font-size: 1.1rem;"></div>
     <div class="store-selector no-print" style="display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap;">
         <select id="store-filter" onchange="updateTables()">
-            <option value="CAFE">CAFE</option>
-            <option value="FEELLOVE">FEELLOVE</option>
-            <option value="SNOW">SNOW</option>
-            <option value="ZION">ZION</option>
+            <option value="CAFE">Cafe FeelLove</option>
+            <option value="FEELLOVE">Riverside</option>
+            <option value="SNOW">Snow Canyon</option>
+            <option value="ZION">Zion Springdale</option>
         </select>
         <button id="btn-update-schedule" onclick="updateSchedule()" style="padding: 8px 12px; font-size: 0.85rem; border: 2px solid #27ae60; border-radius: 8px; background: white; color: #27ae60; cursor: pointer; font-weight: 500;">
             ↻ Schedule
@@ -87,7 +99,10 @@
     </div>
     <div class="store-selector print-only">
         <select id="store-filter-print" disabled>
-            <option value="CAFE">CAFE</option>
+            <option value="CAFE">Cafe FeelLove</option>
+            <option value="FEELLOVE">Riverside</option>
+            <option value="SNOW">Snow Canyon</option>
+            <option value="ZION">Zion Springdale</option>
         </select>
     </div>
     <div id="sync-status" class="no-print" style="margin-top: 8px; font-size: 0.85rem; color: #7f8c8d; min-height: 18px; text-align: center;"></div>
@@ -469,6 +484,7 @@ function changeDay(delta) {
     updateDateDisplay();
     updateUrl();
     loadDataForSelectedDate();
+    if (typeof updatePrintHeader === 'function') updatePrintHeader();
 }
 
 function goToToday() {
@@ -476,6 +492,7 @@ function goToToday() {
     updateDateDisplay();
     updateUrl();
     loadDataForSelectedDate();
+    if (typeof updatePrintHeader === 'function') updatePrintHeader();
 }
 
 function loadDataForSelectedDate() {
@@ -717,10 +734,41 @@ initFromUrl();
 updateDateDisplay();
 updateUrl();
 
+// Store display names for print header
+const storeDisplayNames = {
+    'CAFE': 'Cafe FeelLove',
+    'FEELLOVE': 'Riverside',
+    'SNOW': 'Snow Canyon',
+    'ZION': 'Zion Springdale'
+};
+
+function updatePrintHeader() {
+    const store = document.getElementById('store-filter').value;
+    const printStoreName = document.getElementById('print-store-name');
+    const printHeaderDate = document.getElementById('print-header-date');
+
+    if (printStoreName) {
+        printStoreName.textContent = storeDisplayNames[store] || store;
+    }
+    if (printHeaderDate) {
+        printHeaderDate.textContent = selectedDate.toLocaleDateString('en-US', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'America/Denver'
+        });
+    }
+}
+
 // Handle store filter changes
 document.getElementById('store-filter').addEventListener('change', function() {
     updateUrl();
+    updatePrintHeader();
 });
+
+// Initial print header update
+updatePrintHeader();
 </script>
 </body>
 </html>

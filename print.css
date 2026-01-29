@@ -35,24 +35,41 @@
         display: none !important;
     }
 
-    /* Header - compact single line */
-    .dashboard-header {
-        display: flex;
-        justify-content: space-between;
+    /* Print Header with logo and cream background */
+    .print-header {
+        display: flex !important;
         align-items: center;
-        border-bottom: 2px solid #333;
-        padding-bottom: 5px;
-        margin-bottom: 8px;
+        gap: 20px;
+        background: #f5f0e6 !important; /* cream */
+        padding: 12px 20px;
+        border-radius: 8px;
+        margin-bottom: 10px;
     }
 
-    .dashboard-header h1 {
-        font-size: 16pt;
-        margin: 0;
+    .print-logo {
+        height: 50px;
+        width: auto;
     }
 
-    .dashboard-header .date {
+    .print-header-text {
+        flex: 1;
+    }
+
+    .print-store-name {
+        font-size: 18pt;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+
+    .print-header-date {
         font-size: 11pt;
-        color: #333;
+        color: #555;
+        margin-top: 2px;
+    }
+
+    /* Hide main header in print */
+    .dashboard-header {
+        display: none !important;
     }
 
     .date-nav {
@@ -60,7 +77,7 @@
     }
 
     #print-date {
-        display: block !important;
+        display: none !important;
     }
 
     /* Progress section - compact single row */
