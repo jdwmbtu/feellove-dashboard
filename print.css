@@ -338,10 +338,13 @@
         line-height: 1.3;
     }
 
-    /* Show empty notes as blank boxes for handwriting */
-    .staff-note-input:empty::before,
-    .staff-note-input[value=""]::before {
-        content: "";
+    /* Hide placeholder text in print - show blank for handwriting */
+    .staff-note-input::placeholder {
+        color: transparent !important;
+    }
+
+    .day-note-input::placeholder {
+        color: transparent !important;
     }
 
     /* Staff totals - compact */
@@ -355,7 +358,7 @@
         font-size: 8pt;
     }
 
-    /* Day notes section - single line */
+    /* Day notes section - 2 lines */
     .day-notes-section {
         background: white !important;
         box-shadow: none !important;
@@ -364,14 +367,14 @@
         padding: 4px 8px;
         margin-bottom: 4px;
         display: flex !important;
-        align-items: center;
+        align-items: flex-start;
         gap: 8px;
     }
 
     .day-notes-section .section-title {
         border-bottom: none;
         margin: 0;
-        padding: 0;
+        padding: 4px 0 0 0;
         white-space: nowrap;
         font-size: 8pt;
     }
@@ -381,8 +384,8 @@
         border: 1px solid #999 !important;
         background: white !important;
         font-size: 8pt;
-        min-height: 20px !important;
-        height: 20px !important;
+        min-height: 32px !important;
+        height: 32px !important;
         padding: 2px 6px !important;
         resize: none;
     }
