@@ -249,6 +249,11 @@ function formatTip(tip) {
     return '$' + parseFloat(tip).toFixed(2);
 }
 
+function calcAOV(sales, orders) {
+    if (!orders || orders === 0) return null;
+    return (sales / orders).toFixed(2);
+}
+
 function renderWeekTable(weekData, storeNames) {
     const stores = STORE_ORDER.map(key => ({
         key,
@@ -269,6 +274,8 @@ function renderWeekTable(weekData, storeNames) {
                     <th>Orders</th>
                     <th>Loy Orders</th>
                     <th>Loy %</th>
+                    <th>Loy AOV</th>
+                    <th>Non-Loy AOV</th>
                     <th>Loy Tip</th>
                     <th>Non-Loy Tip</th>
                     <th>Signups</th>
@@ -277,6 +284,10 @@ function renderWeekTable(weekData, storeNames) {
             <tbody>`;
 
     for (const store of stores) {
+        const loyAOV = calcAOV(store.loyaltySales, store.loyaltyOrders);
+        const nonLoyOrders = store.orders - store.loyaltyOrders;
+        const nonLoySales = store.netSales - store.loyaltySales;
+        const nonLoyAOV = calcAOV(nonLoySales, nonLoyOrders);
         html += `
             <tr>
                 <td class="store-name">${store.name}</td>
@@ -286,6 +297,8 @@ function renderWeekTable(weekData, storeNames) {
                 <td>${store.orders}</td>
                 <td>${store.loyaltyOrders}</td>
                 <td class="pct">${formatPct(store.loyaltyOrdersPct)}</td>
+                <td class="money">${formatTip(loyAOV)}</td>
+                <td class="money">${formatTip(nonLoyAOV)}</td>
                 <td class="tip">${formatTip(store.avgLoyaltyTip)}</td>
                 <td class="tip">${formatTip(store.avgNonLoyaltyTip)}</td>
                 <td class="signups">${store.newSignups}</td>
@@ -294,6 +307,10 @@ function renderWeekTable(weekData, storeNames) {
 
     // Totals row
     const t = weekData.totals;
+    const tLoyAOV = calcAOV(t.loyaltySales, t.loyaltyOrders);
+    const tNonLoyOrders = t.orders - t.loyaltyOrders;
+    const tNonLoySales = t.netSales - t.loyaltySales;
+    const tNonLoyAOV = calcAOV(tNonLoySales, tNonLoyOrders);
     html += `
             <tr class="totals-row">
                 <td class="store-name">Total</td>
@@ -303,6 +320,8 @@ function renderWeekTable(weekData, storeNames) {
                 <td>${t.orders}</td>
                 <td>${t.loyaltyOrders}</td>
                 <td class="pct">${formatPct(t.loyaltyOrdersPct)}</td>
+                <td class="money">${formatTip(tLoyAOV)}</td>
+                <td class="money">${formatTip(tNonLoyAOV)}</td>
                 <td class="tip">${formatTip(t.avgLoyaltyTip)}</td>
                 <td class="tip">${formatTip(t.avgNonLoyaltyTip)}</td>
                 <td class="signups">${t.newSignups}</td>
