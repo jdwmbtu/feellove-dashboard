@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loyalty Dashboard - FeelLove Coffee</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #fdfbf8;
+            color: #5a4a3a;
+            padding: 20px;
+            line-height: 1.5;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #fff9f0 0%, #fff 100%);
+            border-bottom: 2px solid #e8d4b8;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header img { height: 45px; }
+        .header h1 { font-size: 1.4rem; font-weight: 600; }
+        .header-right { display: flex; gap: 12px; align-items: center; }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .btn-primary { background: #d4a574; color: white; }
+        .btn-secondary { background: white; border: 2px solid #d4a574; color: #5a4a3a; }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(90,74,58,0.06);
+            border: 1px solid #e8ddd0;
+        }
+        .metric-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #5a4a3a;
+        }
+        .metric-label {
+            font-size: 0.85rem;
+            color: #9a8a7a;
+            margin-top: 4px;
+        }
+        .metric-card.highlight {
+            background: linear-gradient(135deg, #ffffff, #f5e1dc);
+            border-color: #e8c4b8;
+        }
+        .metric-card.highlight .metric-value { color: #b87a7e; }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(90,74,58,0.06);
+            border: 1px solid #e8ddd0;
+        }
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0e4d7;
+        }
+
+        .store-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .store-card {
+            background: #fdfbf8;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .store-name {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        .store-stat {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #d4a574;
+        }
+        .store-label {
+            font-size: 0.75rem;
+            color: #9a8a7a;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .comparison-table th, .comparison-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e8ddd0;
+        }
+        .comparison-table th {
+            background: #fdfbf8;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #9a8a7a;
+        }
+        .comparison-table td { font-size: 0.95rem; }
+        .comparison-table tr:hover { background: #fdfbf8; }
+        .positive { color: #5a9a7a; }
+        .negative { color: #b87a7e; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #9a8a7a;
+        }
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e8ddd0;
+            border-top-color: #d4a574;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            .store-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .trend-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0e4d7;
+        }
+        .trend-row:last-child { border-bottom: none; }
+        .trend-month { font-weight: 500; }
+        .trend-value { font-weight: 600; color: #d4a574; }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-left">
+        <img src="https://feellovecoffee.com/wp-content/uploads/2024/09/fl_logo.svg" alt="FeelLove">
+        <h1>Loyalty Dashboard</h1>
+    </div>
+    <div class="header-right">
+        <span id="last-updated" style="font-size: 0.8rem; color: #9a8a7a;">Loading...</span>
+        <button class="btn btn-primary" onclick="loadAllData()">↻ Refresh</button>
+    </div>
+</header>
+
+<!-- Top Level Metrics -->
+<div class="metrics-grid">
+    <div class="metric-card highlight">
+        <div class="metric-value" id="total-members">--</div>
+        <div class="metric-label">Total Loyalty Members</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="active-members">--</div>
+        <div class="metric-label">Active Members</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="loyalty-rate">--%</div>
+        <div class="metric-label">Loyalty Order Rate</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="redemption-rate">--%</div>
+        <div class="metric-label">Redemption Rate</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="points-circulation">--</div>
+        <div class="metric-label">Points in Circulation</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="avg-lifetime">--</div>
+        <div class="metric-label">Avg Lifetime Points</div>
+    </div>
+</div>
+
+<div class="two-col">
+    <!-- Store Comparison -->
+    <div class="section">
+        <h2 class="section-title">Loyalty Activity by Store (Last 30 Days)</h2>
+        <div class="store-grid" id="store-activity">
+            <div class="loading">Loading store data...</div>
+        </div>
+    </div>
+
+    <!-- Recent Signups -->
+    <div class="section">
+        <h2 class="section-title">New Signups by Month</h2>
+        <div id="signup-trends">
+            <div class="loading">Loading trends...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Loyalty vs Non-Loyalty Comparison -->
+<div class="section">
+    <h2 class="section-title">Loyalty vs Non-Loyalty Customers (Last 7 Days)</h2>
+    <table class="comparison-table" id="comparison-table">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Loyalty Customers</th>
+                <th>Non-Loyalty</th>
+                <th>Difference</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td colspan="4" class="loading">Loading comparison...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Reward Tiers -->
+<div class="section">
+    <h2 class="section-title">Reward Tiers</h2>
+    <div id="reward-tiers">
+        <div class="loading">Loading rewards...</div>
+    </div>
+</div>
+
+<script>
+const API_BASE = 'https://feellove-sync.vercel.app/api';
+// We'll need to create a loyalty API endpoint, for now use direct calls
+
+const LOCATIONS = {
+    'LP4HWE0NCWC9Y': 'Cafe FeelLove',
+    '3W6S7XM4QHZR5': 'Riverside',
+    'LWS3J3NK0BDYA': 'Snow Canyon',
+    'L0BEFRPSDF20H': 'Zion'
+};
+
+// For now, display static data from our exploration
+// In production, this would call a backend API
+
+function loadAllData() {
+    document.getElementById('last-updated').textContent = 'Loading...';
+
+    // Simulated data from our exploration
+    setTimeout(() => {
+        // Top metrics
+        document.getElementById('total-members').textContent = '10,000+';
+        document.getElementById('active-members').textContent = '9,864';
+        document.getElementById('loyalty-rate').textContent = '50%';
+        document.getElementById('redemption-rate').textContent = '8%';
+        document.getElementById('points-circulation').textContent = '212K';
+        document.getElementById('avg-lifetime').textContent = '128';
+
+        // Store activity
+        document.getElementById('store-activity').innerHTML = `
+            <div class="store-card">
+                <div class="store-name">Cafe FeelLove</div>
+                <div class="store-stat">16</div>
+                <div class="store-label">events (30d)</div>
+            </div>
+            <div class="store-card">
+                <div class="store-name">Riverside</div>
+                <div class="store-stat">4</div>
+                <div class="store-label">events (30d)</div>
+            </div>
+            <div class="store-card">
+                <div class="store-name">Zion</div>
+                <div class="store-stat">2</div>
+                <div class="store-label">events (30d)</div>
+            </div>
+            <div class="store-card">
+                <div class="store-name">Snow Canyon</div>
+                <div class="store-stat">1</div>
+                <div class="store-label">events (30d)</div>
+            </div>
+        `;
+
+        // Signup trends (need to get recent data)
+        document.getElementById('signup-trends').innerHTML = `
+            <div class="trend-row">
+                <span class="trend-month">January 2026</span>
+                <span class="trend-value">TBD</span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-month">December 2025</span>
+                <span class="trend-value">TBD</span>
+            </div>
+            <div class="trend-row">
+                <span class="trend-month">November 2025</span>
+                <span class="trend-value">TBD</span>
+            </div>
+            <div style="margin-top: 12px; font-size: 0.85rem; color: #9a8a7a; font-style: italic;">
+                Note: Need to set up daily tracking for accurate trends
+            </div>
+        `;
+
+        // Comparison table
+        document.getElementById('comparison-table').querySelector('tbody').innerHTML = `
+            <tr>
+                <td>Orders</td>
+                <td>~50% of total</td>
+                <td>~50% of total</td>
+                <td>--</td>
+            </tr>
+            <tr>
+                <td>Avg Order Value</td>
+                <td id="loyalty-aov">$--</td>
+                <td id="non-loyalty-aov">$--</td>
+                <td id="aov-diff">--</td>
+            </tr>
+            <tr>
+                <td>Redemptions</td>
+                <td>8% of loyalty orders</td>
+                <td>N/A</td>
+                <td>--</td>
+            </tr>
+        `;
+
+        // Reward tiers
+        document.getElementById('reward-tiers').innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                <div class="store-card">
+                    <div class="store-stat" style="font-size: 1.2rem;">5 ❤️</div>
+                    <div class="store-name" style="margin-top: 8px;">1 Free Macaron</div>
+                    <div class="store-label">100% off</div>
+                </div>
+                <div class="store-card">
+                    <div class="store-stat" style="font-size: 1.2rem;">10 ❤️</div>
+                    <div class="store-name" style="margin-top: 8px;">Avo Toast</div>
+                    <div class="store-label">50% off single slice</div>
+                </div>
+                <div class="store-card">
+                    <div class="store-stat" style="font-size: 1.2rem;">20 ❤️</div>
+                    <div class="store-name" style="margin-top: 8px;">Any Drink</div>
+                    <div class="store-label">50% off</div>
+                </div>
+                <div class="store-card">
+                    <div class="store-stat" style="font-size: 1.2rem;">30 ❤️</div>
+                    <div class="store-name" style="margin-top: 8px;">Entire Sale</div>
+                    <div class="store-label">50% off (up to $15)</div>
+                </div>
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: #f5e1dc; border-radius: 8px; font-size: 0.9rem;">
+                <strong>Earning Rate:</strong> 1 Heart per $5 spent
+            </div>
+        `;
+
+        document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    }, 500);
+}
+
+// Load on page load
+loadAllData();
+</script>
+
+</body>
+</html>
