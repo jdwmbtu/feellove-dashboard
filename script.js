@@ -3261,6 +3261,14 @@ function updateYoYForDate(store, viewDate, currentMTD) {
         yoyEl.style.color = yoyChange >= 0 ? '#27ae60' : '#e74c3c';
     }
 
+    // Update label to show comparison period
+    const yoyLabelEl = document.getElementById('yoy-label');
+    if (yoyLabelEl) {
+        const monthName = viewDate.toLocaleString('en-US', { month: 'short' });
+        const throughDay = viewDay - 1;
+        yoyLabelEl.textContent = `vs. ${lastYear} ${monthName} thru ${throughDay}`;
+    }
+
     // Update last year MTD hidden element
     const lastYearMtdEl = document.getElementById('last-year-mtd');
     if (lastYearMtdEl) lastYearMtdEl.textContent = `$${Math.round(lastYearMTD).toLocaleString()}`;
