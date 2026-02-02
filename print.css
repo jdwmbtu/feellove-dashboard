@@ -284,14 +284,14 @@
     .staff-card {
         display: flex !important;
         flex-direction: row !important;
-        align-items: center;
+        align-items: flex-start;
         gap: 6px;
-        background: #f9f9f9 !important;
-        border: 1px solid #999;
+        background: transparent !important;
+        border: none;
         border-left: 3px solid #333;
-        border-radius: 3px;
+        border-radius: 0;
         padding: 3px 6px;
-        min-height: 36px;
+        min-height: 0;
     }
 
     .staff-header {
