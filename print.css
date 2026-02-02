@@ -243,11 +243,11 @@
     }
 
     .print-two-column .team-section {
-        margin-bottom: 4px;
+        margin-bottom: 2px;
     }
 
     .print-two-column .day-notes-section {
-        margin-bottom: 4px;
+        margin-bottom: 0;
     }
 
     /* Team section - compact */
@@ -256,16 +256,16 @@
         box-shadow: none !important;
         border: 1px solid #333;
         border-radius: 4px;
-        padding: 5px 8px;
-        margin-bottom: 4px;
+        padding: 3px 6px;
+        margin-bottom: 2px;
     }
 
     .section-title {
-        font-size: 9pt;
+        font-size: 8pt;
         font-weight: bold;
         border-bottom: 1px solid #333;
-        padding-bottom: 2px;
-        margin-bottom: 4px;
+        padding-bottom: 1px;
+        margin-bottom: 2px;
         margin-top: 0;
     }
 
@@ -367,16 +367,16 @@
         box-shadow: none !important;
         border: 1px solid #333;
         border-radius: 4px;
-        padding: 6px 10px;
-        margin-bottom: 4px;
+        padding: 3px 6px;
+        margin-bottom: 2px;
         display: block !important;
     }
 
     .day-notes-section .section-title {
         border-bottom: none;
-        margin: 0 0 4px 0;
+        margin: 0 0 2px 0;
         padding: 0;
-        font-size: 9pt;
+        font-size: 8pt;
     }
 
     .day-note-input {
@@ -384,13 +384,13 @@
         border: none !important;
         background: transparent !important;
         color: #000 !important;
-        font-size: 9pt;
+        font-size: 7pt;
         min-height: 0 !important;
         /* height set by JS before print */
         max-height: none;
         padding: 0 !important;
         resize: none;
-        line-height: 1.4;
+        line-height: 1.2;
         overflow: visible !important;
     }
 

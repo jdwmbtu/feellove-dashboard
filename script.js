@@ -3748,9 +3748,10 @@ window.addEventListener('beforeprint', () => {
     if (sevenDayChartInstance) {
         sevenDayChartInstance.resize();
     }
-    // Auto-expand all textareas to show full content
+    // Auto-expand all textareas to fit content exactly
     document.querySelectorAll('textarea').forEach(ta => {
         ta.dataset.originalHeight = ta.style.height;
+        ta.style.height = '0';
         ta.style.height = ta.scrollHeight + 'px';
     });
 });
