@@ -5,7 +5,7 @@
 
 @media print {
     @page {
-        size: letter landscape;
+        size: 11in 8.5in; /* explicit landscape dimensions */
         margin: 0.2in;
     }
 
@@ -19,6 +19,8 @@
         font-size: 9pt;
         margin: 0;
         padding: 0;
+        width: 10.6in !important; /* force landscape width */
+        max-width: 10.6in !important;
     }
 
     /* Hide elements not needed in print */
