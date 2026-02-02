@@ -333,12 +333,13 @@
         color: #000 !important;
         font-size: 7pt;
         min-height: 0 !important;
-        /* height set by JS before print */
+        height: auto !important;
         padding: 0 !important;
         resize: none;
         white-space: pre-wrap;
         overflow: visible !important;
         line-height: 1.2;
+        field-sizing: content;
     }
 
     /* Hide placeholder text in print - show blank for handwriting */
@@ -386,12 +387,13 @@
         color: #000 !important;
         font-size: 7pt;
         min-height: 0 !important;
-        /* height set by JS before print */
+        height: auto !important;
         max-height: none;
         padding: 0 !important;
         resize: none;
         line-height: 1.2;
         overflow: visible !important;
+        field-sizing: content;
     }
 
     /* Hide schedule date display */

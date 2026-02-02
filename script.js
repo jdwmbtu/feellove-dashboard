@@ -3743,27 +3743,17 @@ function printDashboard() {
     }, 100);
 }
 
-// Handle print events to resize chart and textareas properly
+// Handle print events to resize chart properly
 window.addEventListener('beforeprint', () => {
     if (sevenDayChartInstance) {
         sevenDayChartInstance.resize();
     }
-    // Auto-expand all textareas to fit content exactly
-    document.querySelectorAll('textarea').forEach(ta => {
-        ta.dataset.originalHeight = ta.style.height;
-        ta.style.height = '0';
-        ta.style.height = ta.scrollHeight + 'px';
-    });
 });
 
 window.addEventListener('afterprint', () => {
     if (sevenDayChartInstance) {
         sevenDayChartInstance.resize();
     }
-    // Restore original textarea heights
-    document.querySelectorAll('textarea').forEach(ta => {
-        ta.style.height = ta.dataset.originalHeight || '';
-    });
 });
 
 function printDashboard_OLD() {
