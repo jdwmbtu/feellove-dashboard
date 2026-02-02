@@ -273,11 +273,11 @@
         display: none;
     }
 
-    /* Staff list - single column */
+    /* Staff list - single column, tight spacing */
     .staff-list {
         display: flex !important;
         flex-direction: column;
-        gap: 2px;
+        gap: 0;
     }
 
     /* Staff card - horizontal row: Name 15% | Gantt 35% | Notes 50% */
@@ -285,13 +285,14 @@
         display: flex !important;
         flex-direction: row !important;
         align-items: flex-start;
-        gap: 6px;
+        gap: 4px;
         background: transparent !important;
         border: none;
-        border-left: 3px solid #333;
+        border-left: 2px solid #333;
         border-radius: 0;
-        padding: 3px 6px;
+        padding: 1px 4px;
         min-height: 0;
+        margin-bottom: 1px;
     }
 
     .staff-header {
@@ -299,12 +300,12 @@
     }
 
     .staff-name {
-        font-size: 8pt;
+        font-size: 7pt;
         font-weight: bold;
         width: 15%;
         flex-shrink: 0;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -314,12 +315,13 @@
     .shift-gantt-bar {
         width: 35% !important;
         flex-shrink: 0;
-        height: 18px !important;
-        align-self: center;
+        height: 14px !important;
+        align-self: flex-start;
+        margin-top: 2px;
     }
 
     .shift-gantt-bar > div {
-        font-size: 6pt !important;
+        font-size: 5pt !important;
     }
 
     /* Staff notes - plain text appearance in print */
@@ -329,14 +331,14 @@
         border: none !important;
         background: transparent !important;
         color: #000 !important;
-        font-size: 8pt;
+        font-size: 7pt;
         min-height: 0 !important;
         /* height set by JS before print */
         padding: 0 !important;
         resize: none;
         white-space: pre-wrap;
         overflow: visible !important;
-        line-height: 1.4;
+        line-height: 1.2;
     }
 
     /* Hide placeholder text in print - show blank for handwriting */
