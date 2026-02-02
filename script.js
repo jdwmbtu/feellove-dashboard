@@ -3756,6 +3756,10 @@ window.addEventListener('beforeprint', () => {
     if (sevenDayChartInstance) {
         sevenDayChartInstance.resize();
     }
+    // Update print header with latest targets
+    if (typeof updatePrintHeader === 'function') {
+        updatePrintHeader();
+    }
 });
 
 window.addEventListener('afterprint', () => {

@@ -68,6 +68,20 @@
         <div class="print-store-name" id="print-store-name">Cafe FeelLove</div>
         <div class="print-header-date" id="print-header-date"></div>
     </div>
+    <div class="print-targets">
+        <div class="print-target-item">
+            <span class="print-target-value" id="print-sales-target">$0</span>
+            <span class="print-target-label">Sales</span>
+        </div>
+        <div class="print-target-item">
+            <span class="print-target-value" id="print-orders-target">0</span>
+            <span class="print-target-label">Orders</span>
+        </div>
+        <div class="print-target-item">
+            <span class="print-target-value" id="print-aov-target">$0</span>
+            <span class="print-target-label">AOV</span>
+        </div>
+    </div>
 </div>
 
 <!-- HEADER - Single compact row -->
@@ -169,7 +183,7 @@
     </div>
 
     <!-- TODAY'S TARGETS - Big and Clear -->
-    <div style="background: linear-gradient(135deg, #ffffff, #f5e1dc, #e8c4b8); border-radius: 16px; padding: 24px; margin-bottom: 20px; color: #5a4a3a; border: 1px solid #e8d4d0;">
+    <div class="todays-targets-section" style="background: linear-gradient(135deg, #ffffff, #f5e1dc, #e8c4b8); border-radius: 16px; padding: 24px; margin-bottom: 20px; color: #5a4a3a; border: 1px solid #e8d4d0;">
         <div style="text-align: center; margin-bottom: 16px; font-size: 1.1rem; font-weight: 500;">Today's Targets</div>
         <div class="daily-targets" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; text-align: center;">
             <!-- Daily Sales Target -->
@@ -747,6 +761,19 @@ function updatePrintHeader() {
             timeZone: 'America/Denver'
         });
     }
+
+    // Copy targets to print header
+    const salesTarget = document.getElementById('daily-sales-target')?.textContent || '$0';
+    const ordersTarget = document.getElementById('daily-orders-target')?.textContent || '0';
+    const aovTarget = document.getElementById('daily-aov-target')?.textContent || '$0';
+
+    const printSales = document.getElementById('print-sales-target');
+    const printOrders = document.getElementById('print-orders-target');
+    const printAov = document.getElementById('print-aov-target');
+
+    if (printSales) printSales.textContent = salesTarget;
+    if (printOrders) printOrders.textContent = ordersTarget;
+    if (printAov) printAov.textContent = aovTarget;
 }
 
 // Handle store filter changes
