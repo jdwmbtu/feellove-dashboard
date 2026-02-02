@@ -322,17 +322,17 @@
         font-size: 6pt !important;
     }
 
-    /* Staff notes - 50%, expand to fit all text */
+    /* Staff notes - plain text appearance in print */
     .staff-note-input {
         width: 50% !important;
         flex-shrink: 0;
-        border: 1px solid #999 !important;
-        background: white !important;
+        border: none !important;
+        background: transparent !important;
         color: #000 !important;
         font-size: 8pt;
-        min-height: 52px !important;
+        min-height: 0 !important;
         height: auto !important;
-        padding: 2px 5px !important;
+        padding: 0 !important;
         resize: none;
         white-space: pre-wrap;
         overflow: visible !important;
@@ -379,16 +379,17 @@
 
     .day-note-input {
         width: 100%;
-        border: 1px solid #999 !important;
-        background: white !important;
+        border: none !important;
+        background: transparent !important;
         color: #000 !important;
         font-size: 9pt;
-        min-height: 120px !important;
+        min-height: 0 !important;
         height: auto !important;
-        max-height: 180px;
-        padding: 4px 8px !important;
+        max-height: none;
+        padding: 0 !important;
         resize: none;
         line-height: 1.4;
+        overflow: visible !important;
     }
 
     /* Hide schedule date display */
