@@ -322,7 +322,7 @@
         font-size: 6pt !important;
     }
 
-    /* Staff notes - 50%, 2-3 lines tall for writing */
+    /* Staff notes - 50%, expand to fit all text */
     .staff-note-input {
         width: 50% !important;
         flex-shrink: 0;
@@ -331,11 +331,11 @@
         color: #000 !important;
         font-size: 8pt;
         min-height: 52px !important;
-        height: 52px !important;
+        height: auto !important;
         padding: 2px 5px !important;
         resize: none;
         white-space: pre-wrap;
-        overflow: hidden;
+        overflow: visible !important;
         line-height: 1.4;
     }
 
