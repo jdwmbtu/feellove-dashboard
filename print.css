@@ -334,7 +334,7 @@
         font-size: 7pt;
         min-height: 0 !important;
         height: auto !important;
-        padding: 0 !important;
+        padding: 0 0 0 4px !important;
         resize: none;
         white-space: pre-wrap;
         overflow: visible !important;
