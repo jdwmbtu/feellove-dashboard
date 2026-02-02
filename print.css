@@ -331,7 +331,7 @@
         color: #000 !important;
         font-size: 8pt;
         min-height: 0 !important;
-        height: auto !important;
+        /* height set by JS before print */
         padding: 0 !important;
         resize: none;
         white-space: pre-wrap;
@@ -384,7 +384,7 @@
         color: #000 !important;
         font-size: 9pt;
         min-height: 0 !important;
-        height: auto !important;
+        /* height set by JS before print */
         max-height: none;
         padding: 0 !important;
         resize: none;
