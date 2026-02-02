@@ -3267,7 +3267,8 @@ function updateYoYForDate(store, viewDate, currentMTD) {
         const monthName = viewDate.toLocaleString('en-US', { month: 'short' });
         const throughDay = viewDay - 1;
         const ordinal = throughDay === 1 ? '1st' : throughDay === 2 ? '2nd' : throughDay === 3 ? '3rd' : `${throughDay}th`;
-        yoyLabelEl.textContent = `thru ${monthName} ${ordinal}`;
+        const shortYear = String(lastYear).slice(-2);
+        yoyLabelEl.textContent = `vs. ${monthName} '${shortYear} thru ${ordinal}`;
     }
 
     // Update last year MTD hidden element

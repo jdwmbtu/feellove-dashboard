@@ -72,8 +72,14 @@
 
     .print-targets {
         display: flex;
-        gap: 20px;
+        gap: 12px;
         align-items: center;
+    }
+
+    .print-targets-label {
+        font-size: 9pt;
+        font-weight: bold;
+        color: #5a4a3a;
     }
 
     .print-target-item {
@@ -82,13 +88,13 @@
 
     .print-target-value {
         display: block;
-        font-size: 14pt;
+        font-size: 12pt;
         font-weight: bold;
         color: #2c3e50;
     }
 
     .print-target-label {
-        font-size: 7pt;
+        font-size: 6pt;
         color: #666;
     }
 
