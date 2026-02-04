@@ -472,7 +472,7 @@ function updateUrl() {
 
 function updateDateDisplay() {
     const dateStr = selectedDate.toLocaleDateString('en-US', {
-        weekday: 'long',
+        weekday: 'short',
         month: 'long',
         day: 'numeric',
         year: 'numeric',
@@ -755,7 +755,7 @@ function updatePrintHeader() {
     }
     if (printHeaderDate) {
         printHeaderDate.textContent = selectedDate.toLocaleDateString('en-US', {
-            weekday: 'short',
+            weekday: 'long',
             month: 'long',
             day: 'numeric',
             year: 'numeric',
